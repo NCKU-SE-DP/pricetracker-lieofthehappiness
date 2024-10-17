@@ -1,7 +1,8 @@
 <template>
     <nav class="navbar">
         <div class="title"> <RouterLink to="/overview">價格追蹤小幫手</RouterLink></div>
-        <ul class="options">
+        <div class="hamburger" id="hamburger" @click="make_menu_thin"> &#9776;</div>
+        <ul class="options" ref="navMenu">
             <li><RouterLink to="/overview">物價概覽</RouterLink></li>
             <li><RouterLink to="/trending">物價趨勢</RouterLink></li>
             <li><RouterLink to="/news">相關新聞</RouterLink></li>
@@ -10,6 +11,7 @@
         </ul>
     </nav>
 </template>
+
 
 <script>
 import { useAuthStore } from '@/stores/auth';
@@ -30,6 +32,10 @@ export default {
         logout(){
             const userStore = useAuthStore();
             userStore.logout();
+        },
+        make_menu_thin(){
+            const navMenu = this.$refs.navMenu;
+            navMenu.classList.toggle("active");
         }
     }
 };
@@ -41,7 +47,7 @@ export default {
     justify-content: space-between;
     background-color: #f3f3f3;
     padding: 1.5em;
-    height: 4.5em;
+  /*  height: 4.5em;*/
     width: 100%;
     align-items: center;
     box-shadow: 0 0 5px #000000;
@@ -75,4 +81,38 @@ export default {
     color: #575B5D;
 }
 
+.hamburger {
+    display: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    position: absolute;
+    right: 0;
+    user-select: none;
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .navbar ul {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        background-color: #f3f3f3;
+    }
+
+    .hamburger {
+        display: block;
+        display: flex;
+    }
+
+    .navbar ul.active {
+        display: flex;
+    }
+}
 </style>
+
+
+
