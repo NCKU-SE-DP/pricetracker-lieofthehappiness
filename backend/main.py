@@ -19,7 +19,7 @@ from sqlalchemy import (Column, ForeignKey, Integer, String, Table, Text,
                         create_engine)
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
-
+from datetime import datetime, timedelta, timezone  
 Base = declarative_base()
 
 
@@ -295,9 +295,9 @@ def create_access_token(data, expires_delta=None):
     """create access token"""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     print(to_encode)
     encoded_jwt = jwt.encode(to_encode, '1892dhianiandowqd0n', algorithm="HS256")
