@@ -147,14 +147,14 @@ def add_new(news_data):
 
 
 
-def get_news_data(search_term, page, channel_id=2):
-    pagedata = {
+def get_pages_info(search_term, page, channel_id=2):
+    pageinfo = {
         "page": page,
         "id": f"search:{quote(search_term)}",
         "channelId": channel_id,
         "type": "searchword",
     }
-    response = requests.get("https://udn.com/api/more", params=pagedata)
+    response = requests.get("https://udn.com/api/more", params=pageinfo)
     response.raise_for_status() 
     return response.json().get("lists", [])
 
@@ -165,15 +165,16 @@ def get_new_info(search_term, is_initial=False):
     :param is_initial:
     :return:
     """
-    all_news_data = []
+    all_news_info = []
     # iterate pages to get more news data, not actually get all news data
     if is_initial:
         for pages in range(1, 10):
-            page_data = get_news_data(search_term, pages)
-            all_news_data.extend(page_data)    
+            page_info = get_pages_info(search_term, pages)
+            all_news_info.extend(page_info)    
     else:
-        all_news_data = get_news_data(search_term, page=1)
-    return all_news_data
+        all_news_info = get_pages_info(search_term, page=1)
+    return all_news_info
+
 
 def get_new(is_initial=False):
     """
@@ -268,11 +269,11 @@ def verify(p1, p2):
     return pwd_context.verify(p1, p2)
 
 
-def check_user_password_is_correct(db, n, pwd):
-    OuO = db.query(User).filter(User.username == n).first()
-    if not verify(pwd, OuO.hashed_password):
+def check_user_password_is_correct(db, username, password):
+    user = db.query(User).filter(User.username == username).first()
+    if not verify(password, user.hashed_password):
         return False
-    return OuO
+    return user
 
 
 def authenticate_user_token(
@@ -369,7 +370,7 @@ def read_news(db=Depends(session_opener)):
 )
 def read_user_news(
         db=Depends(session_opener),
-        u=Depends(authenticate_user_token)
+        usertoken=Depends(authenticate_user_token)
 ):
     """
     read user new
@@ -381,7 +382,7 @@ def read_user_news(
     news = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
     result = []
     for article in news:
-        upvotes, upvoted = get_article_upvote_details(article.id, u.id, db)
+        upvotes, upvoted = get_article_upvote_details(article.id, usertoken.id, db)
         result.append(
             {
                 **article.__dict__,
@@ -473,31 +474,31 @@ async def news_summary(
 def upvote_article(
         id,
         db=Depends(session_opener),
-        u=Depends(authenticate_user_token),
+        usertoken=Depends(authenticate_user_token),
 ):
-    message = toggle_upvote(id, u.id, db)
+    message = toggle_upvote(id, usertoken.id, db)
     return {"message": message}
 
 
-def toggle_upvote(n_id, u_id, db):
+def toggle_upvote(articlesid, userid, db):
     existing_upvote = db.execute(
         select(user_news_association_table).where(
-            user_news_association_table.c.news_articles_id == n_id,
-            user_news_association_table.c.user_id == u_id,
+            user_news_association_table.c.news_articles_id ==articlesid,
+            user_news_association_table.c.user_id == userid,
         )
     ).scalar()
 
     if existing_upvote:
         delete_stmt = delete(user_news_association_table).where(
-            user_news_association_table.c.news_articles_id == n_id,
-            user_news_association_table.c.user_id == u_id,
+            user_news_association_table.c.news_articles_id == articlesid,
+            user_news_association_table.c.user_id == userid,
         )
         db.execute(delete_stmt)
         db.commit()
         return "Upvote removed"
     else:
         insert_stmt = insert(user_news_association_table).values(
-            news_articles_id=n_id, user_id=u_id
+            news_articles_id=articlesid, user_id=userid
         )
         db.execute(insert_stmt)
         db.commit()
