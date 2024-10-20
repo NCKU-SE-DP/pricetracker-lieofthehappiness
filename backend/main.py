@@ -146,10 +146,21 @@ def add_new(news_data):
     session.close()
 
 
+
+def get_news_data(search_term, page, channel_id=2):
+    pagedata = {
+        "page": page,
+        "id": f"search:{quote(search_term)}",
+        "channelId": channel_id,
+        "type": "searchword",
+    }
+    response = requests.get("https://udn.com/api/more", params=pagedata)
+    response.raise_for_status() 
+    return response.json().get("lists", [])
+
 def get_new_info(search_term, is_initial=False):
     """
     get new
-
     :param search_term:
     :param is_initial:
     :return:
@@ -157,35 +168,16 @@ def get_new_info(search_term, is_initial=False):
     all_news_data = []
     # iterate pages to get more news data, not actually get all news data
     if is_initial:
-        a = []
         for pages in range(1, 10):
-            p2 = {
-                "page": pages,
-                "id": f"search:{quote(search_term)}",
-                "channelId": 2,
-                "type": "searchword",
-            }
-            response = requests.get("https://udn.com/api/more", params=p2)
-            a.append(response.json()["lists"])
-
-        for l in a:
-            all_news_data.append(l)
+            page_data = get_news_data(search_term, pages)
+            all_news_data.extend(page_data)    
     else:
-        pages = {
-            "page": 1,
-            "id": f"search:{quote(search_term)}",
-            "channelId": 2,
-            "type": "searchword",
-        }
-        response = requests.get("https://udn.com/api/more", params=p)
-
-        all_news_data = response.json()["lists"]
+        all_news_data = get_news_data(search_term, page=1)
     return all_news_data
 
 def get_new(is_initial=False):
     """
     get new info
-
     :param is_initial:
     :return:
     """
