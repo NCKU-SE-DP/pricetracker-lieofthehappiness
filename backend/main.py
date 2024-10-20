@@ -158,9 +158,9 @@ def get_new_info(search_term, is_initial=False):
     # iterate pages to get more news data, not actually get all news data
     if is_initial:
         a = []
-        for p in range(1, 10):
+        for pages in range(1, 10):
             p2 = {
-                "page": p,
+                "page": pages,
                 "id": f"search:{quote(search_term)}",
                 "channelId": 2,
                 "type": "searchword",
@@ -171,7 +171,7 @@ def get_new_info(search_term, is_initial=False):
         for l in a:
             all_news_data.append(l)
     else:
-        p = {
+        pages = {
             "page": 1,
             "id": f"search:{quote(search_term)}",
             "channelId": 2,
@@ -214,9 +214,9 @@ def get_new(is_initial=False):
             content_section = soup.find("section", class_="article-content__editor")
 
             paragraphs = [
-                p.text
-                for p in content_section.find_all("p")
-                if p.text.strip() != "" and "▪" not in p.text
+                pages.text
+                for pages in content_section.find_all("pages")
+                if pages.text.strip() != "" and "▪" not in pages.text
             ]
             detailed_news =  {
                 "url": news["titleLink"],
@@ -432,9 +432,9 @@ async def search_news(request: PromptRequest):
             content_section = soup.find("section", class_="article-content__editor")
 
             paragraphs = [
-                p.text
-                for p in content_section.find_all("p")
-                if p.text.strip() != "" and "▪" not in p.text
+                pages.text
+                for pages in content_section.find_all("pages")
+                if pages.text.strip() != "" and "▪" not in pages.text
             ]
             detailed_news = {
                 "url": news["titleLink"],
