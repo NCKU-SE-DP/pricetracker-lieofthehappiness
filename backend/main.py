@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 Base = declarative_base()
 
 
-user_news_association_table = Table(
+user_news_table = Table(
     "user_news_upvotes",
     Base.metadata,
     Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
@@ -37,12 +37,14 @@ user_news_association_table = Table(
 
 class User(Base):
     __tablename__ = "users"
+    max_username_size=50
+    max_password_size=200
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(50), unique=True, nullable=False)
-    hashed_password = Column(String(200), nullable=False)
+    username = Column(String(max_username_size), unique=True, nullable=False)
+    hashed_password = Column(String(max_password_size), nullable=False)
     upvoted_news = relationship(
         "NewsArticle",
-        secondary=user_news_association_table,
+        secondary=user_news_table,
         back_populates="upvoted_by_users",
     )
 
@@ -57,16 +59,13 @@ class NewsArticle(Base):
     summary = Column(Text, nullable=False)
     reason = Column(Text, nullable=False)
     upvoted_by_users = relationship(
-        "User", secondary=user_news_association_table, back_populates="upvoted_news"
+        "User", secondary=user_news_table, back_populates="upvoted_news"
     )
 
 
 engine = create_engine("sqlite:///news_database.db", echo=True)
-
 Base.metadata.create_all(engine)
-
 Session = sessionmaker(bind=engine)
-
 sentry_sdk.init(
     dsn="https://4001ffe917ccb261aa0e0c34026dc343@o4505702629834752.ingest.us.sentry.io/4507694792704000",
     traces_sample_rate=1.0,
@@ -185,7 +184,7 @@ def get_new(is_initial=False):
     news_data = get_new_info("價格", is_initial=is_initial)
     for news in news_data:
         title = news["title"]
-        m = [
+        aiinfo = [
             {
                 "role": "system",
                 "content": "你是一個關聯度評估機器人，請評估新聞標題是否與「民生用品的價格變化」相關，並給予'high'、'medium'、'low'評價。(僅需回答'high'、'medium'、'low'三個詞之一)",
@@ -194,7 +193,7 @@ def get_new(is_initial=False):
         ]
         ai = OpenAI(api_key="xxx").chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=m,
+            messages=aiinfo,
         )
         relevance = ai.choices[0].message.content
         if relevance == "high":
@@ -217,7 +216,7 @@ def get_new(is_initial=False):
                 "time": time,
                 "content": paragraphs,
             }
-            m = [
+            aiinfo = [
                 {
                     "role": "system",
                     "content": "你是一個新聞摘要生成機器人，請統整新聞中提及的影響及主要原因 (影響、原因各50個字，請以json格式回答 {'影響': '...', '原因': '...'})",
@@ -227,7 +226,7 @@ def get_new(is_initial=False):
 
             completion = OpenAI(api_key="xxx").chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=m,
+                messages=aiinfo,
             )
             result = completion.choices[0].message.content
             result = json.loads(result)
@@ -265,8 +264,8 @@ def session_opener():
 
 
 
-def verify(p1, p2):
-    return pwd_context.verify(p1, p2)
+def verify(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
 
 
 def check_user_password_is_correct(db, username, password):
@@ -330,17 +329,17 @@ def read_users_me(user=Depends(authenticate_user_token)):
 _id_counter = itertools.count(start=1000000)
 
 
-def get_article_upvote_details(article_id, uid, db):
+def get_article_upvote_details(article_id, userid, db):
     cnt = (
-        db.query(user_news_association_table)
+        db.query(user_news_table)
         .filter_by(news_articles_id=article_id)
         .count()
     )
     voted = False
-    if uid:
+    if userid:
         voted = (
-                db.query(user_news_association_table)
-                .filter_by(news_articles_id=article_id, user_id=uid)
+                db.query(user_news_table)
+                .filter_by(news_articles_id=article_id, user_id=userid)
                 .first()
                 is not None
         )
@@ -357,10 +356,10 @@ def read_news(db=Depends(session_opener)):
     """
     news = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
     result = []
-    for n in news:
-        upvotes, upvoted = get_article_upvote_details(n.id, None, db)
+    for article in news:
+        upvotes, upvoted = get_article_upvote_details(article.id, None, db)
         result.append(
-            {**n.__dict__, "upvotes": upvotes, "is_upvoted": upvoted}
+            {**article.__dict__, "upvotes": upvotes, "is_upvoted": upvoted}
         )
     return result
 
@@ -399,7 +398,7 @@ class PromptRequest(BaseModel):
 async def search_news(request: PromptRequest):
     prompt = request.prompt
     news_list = []
-    m = [
+    aiinfo = [
         {
             "role": "system",
             "content": "你是一個關鍵字提取機器人，用戶將會輸入一段文字，表示其希望看見的新聞內容，請提取出用戶希望看見的關鍵字，請截取最重要的關鍵字即可，避免出現「新聞」、「資訊」等混淆搜尋引擎的字詞。(僅須回答關鍵字，若有多個關鍵字，請以空格分隔)",
@@ -409,7 +408,7 @@ async def search_news(request: PromptRequest):
 
     completion = OpenAI(api_key="xxx").chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=m,
+        messages=aiinfo,
     )
     keywords = completion.choices[0].message.content
     # should change into simple factory pattern
@@ -450,7 +449,7 @@ async def news_summary(
         payload: NewsSumaryRequestSchema, u=Depends(authenticate_user_token)
 ):
     response = {}
-    m = [
+    aiinfo = [
         {
             "role": "system",
             "content": "你是一個新聞摘要生成機器人，請統整新聞中提及的影響及主要原因 (影響、原因各50個字，請以json格式回答 {'影響': '...', '原因': '...'})",
@@ -460,7 +459,7 @@ async def news_summary(
 
     completion = OpenAI(api_key="xxx").chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=m,
+        messages=aiinfo,
     )
     result = completion.choices[0].message.content
     if result:
@@ -482,22 +481,22 @@ def upvote_article(
 
 def toggle_upvote(articlesid, userid, db):
     existing_upvote = db.execute(
-        select(user_news_association_table).where(
-            user_news_association_table.c.news_articles_id ==articlesid,
-            user_news_association_table.c.user_id == userid,
+        select(user_news_table).where(
+            user_news_table.c.news_articles_id ==articlesid,
+            user_news_table.c.user_id == userid,
         )
     ).scalar()
 
     if existing_upvote:
-        delete_stmt = delete(user_news_association_table).where(
-            user_news_association_table.c.news_articles_id == articlesid,
-            user_news_association_table.c.user_id == userid,
+        delete_stmt = delete(user_news_table).where(
+            user_news_table.c.news_articles_id == articlesid,
+            user_news_table.c.user_id == userid,
         )
         db.execute(delete_stmt)
         db.commit()
         return "Upvote removed"
     else:
-        insert_stmt = insert(user_news_association_table).values(
+        insert_stmt = insert(user_news_table).values(
             news_articles_id=articlesid, user_id=userid
         )
         db.execute(insert_stmt)
@@ -505,8 +504,8 @@ def toggle_upvote(articlesid, userid, db):
         return "Article upvoted"
 
 
-def news_exists(id2, db: Session):
-    return db.query(NewsArticle).filter_by(id=id2).first() is not None
+def news_exists(article_id, db: Session):
+    return db.query(NewsArticle).filter_by(id=article_id).first() is not None
 
 
 @app.get("/api/v1/prices/necessities-price")
