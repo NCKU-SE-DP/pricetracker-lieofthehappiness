@@ -201,7 +201,7 @@ def get_new(is_initial=False):
             article_soup = BeautifulSoup(response.text, "html.parser")
             # 標題
             article_title = article_soup.find("h1", class_="article-content__title").text
-            publish_time = article_soup.find("time", class_="article-content__time").text
+            article_time = article_soup.find("time", class_="article-content__time").text
             # 定位到包含文章内容的 <section>
             content_section = article_soup.find("section", class_="article-content__editor")
 
@@ -213,7 +213,7 @@ def get_new(is_initial=False):
             detailed_news =  {
                 "url": news["titleLink"],
                 "title":  article_title,
-                "time": publish_time,
+                "time": article_time,
                 "content": paragraphs,
             }
             aiinfo = [
