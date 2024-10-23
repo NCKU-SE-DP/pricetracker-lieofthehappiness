@@ -206,9 +206,9 @@ def get_new(is_initial=False):
             content_section = article_soup.find("section", class_="article-content__editor")
 
             paragraphs = [
-                pages.text
-                for pages in content_section.find_all("p")
-                if pages.text.strip() != "" and "▪" not in pages.text
+                paragraphinfo.text
+                for paragraphinfo in content_section.find_all("p")
+                if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
             ]
             detailed_news =  {
                 "url": news["titleLink"],
@@ -424,9 +424,9 @@ async def search_news(request: PromptRequest):
             content_section = item_soup.find("section", class_="article-content__editor")
 
             paragraphs = [
-                pages.text
-                for pages in content_section.find_all("p")
-                if pages.text.strip() != "" and "▪" not in pages.text
+                paragraphinfo.text
+                for paragraphinfo in content_section.find_all("p")
+                if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
             ]
             detailed_news = {
                 "url": news["titleLink"],
