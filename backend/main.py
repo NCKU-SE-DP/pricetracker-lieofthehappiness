@@ -198,22 +198,22 @@ def get_new(is_initial=False):
         relevance = ai.choices[0].message.content
         if relevance == "high":
             response = requests.get(news["titleLink"])
-            soup = BeautifulSoup(response.text, "html.parser")
+            article_soup = BeautifulSoup(response.text, "html.parser")
             # 標題
-            title = soup.find("h1", class_="article-content__title").text
-            time = soup.find("time", class_="article-content__time").text
+            article_title = article_soup.find("h1", class_="article-content__title").text
+            publish_time = article_soup.find("time", class_="article-content__time").text
             # 定位到包含文章内容的 <section>
-            content_section = soup.find("section", class_="article-content__editor")
+            content_section = article_soup.find("section", class_="article-content__editor")
 
             paragraphs = [
                 pages.text
-                for pages in content_section.find_all("pages")
+                for pages in content_section.find_all("p")
                 if pages.text.strip() != "" and "▪" not in pages.text
             ]
             detailed_news =  {
                 "url": news["titleLink"],
-                "title": title,
-                "time": time,
+                "title":  article_title,
+                "time": publish_time,
                 "content": paragraphs,
             }
             aiinfo = [
@@ -330,7 +330,7 @@ _id_counter = itertools.count(start=1000000)
 
 
 def get_article_upvote_details(article_id, userid, db):
-    cnt = (
+    total_upvotes = (
         db.query(user_news_table)
         .filter_by(news_articles_id=article_id)
         .count()
@@ -343,7 +343,7 @@ def get_article_upvote_details(article_id, userid, db):
                 .first()
                 is not None
         )
-    return cnt, voted
+    return total_upvotes, voted
 
 
 @app.get("/api/v1/news/news")
@@ -416,29 +416,29 @@ async def search_news(request: PromptRequest):
     for news in news_items:
         try:
             response = requests.get(news["titleLink"])
-            soup = BeautifulSoup(response.text, "html.parser")
+            item_soup = BeautifulSoup(response.text, "html.parser")
             # 標題
-            title = soup.find("h1", class_="article-content__title").text
-            time = soup.find("time", class_="article-content__time").text
+            item_title = item_soup.find("h1", class_="article-content__title").text
+            item_time = item_soup.find("time", class_="article-content__time").text
             # 定位到包含文章内容的 <section>
-            content_section = soup.find("section", class_="article-content__editor")
+            content_section = item_soup.find("section", class_="article-content__editor")
 
             paragraphs = [
                 pages.text
-                for pages in content_section.find_all("pages")
+                for pages in content_section.find_all("p")
                 if pages.text.strip() != "" and "▪" not in pages.text
             ]
             detailed_news = {
                 "url": news["titleLink"],
-                "title": title,
-                "time": time,
+                "title": item_title,
+                "time": item_time,
                 "content": paragraphs,
             }
             detailed_news["content"] = " ".join(detailed_news["content"])
             detailed_news["id"] = next(_id_counter)
             news_list.append(detailed_news)
-        except Exception as e:
-            print(e)
+        except Exception as error:
+            print(error)
     return sorted(news_list, key=lambda x: x["time"], reverse=True)
 
 class NewsSumaryRequestSchema(BaseModel):
