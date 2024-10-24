@@ -274,12 +274,13 @@ def check_user_password_is_correct(db, username, password):
         return False
     return user
 
-
+SECRET_KEY = '1892dhianiandowqd0n'
+ALGORITHM = "HS256"
 def authenticate_user_token(
     token = Depends(oauth2_scheme),
     db = Depends(session_opener)
 ):
-    payload = jwt.decode(token, '1892dhianiandowqd0n', algorithms=["HS256"])
+    payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     return db.query(User).filter(User.username == payload.get("sub")).first()
 
 
@@ -292,7 +293,7 @@ def create_access_token(data, expires_delta=None):
         expire = datetime.datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     print(to_encode)
-    encoded_jwt = jwt.encode(to_encode, '1892dhianiandowqd0n', algorithm="HS256")
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
