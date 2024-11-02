@@ -7,7 +7,6 @@ from .models import NewsArticle
 from .config import App
 from .database import engine
 from .news import get_new
-
 app = FastAPI()
 sentry_sdk.init(
     dsn=App.DSN,
