@@ -35,7 +35,7 @@ def read_user_news(
     """
     read user new
     :param db:
-    :param u:
+    :param usertoken:
     :return:
     """
     news = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
