@@ -9,7 +9,6 @@ def check_user_password_is_correct(db, username, password):
         return False
     return user
 def create_access_token(data, expires_delta=None):
-    """create access token"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.datetime.now(timezone.utc) + expires_delta

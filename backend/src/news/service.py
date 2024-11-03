@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 from ..models import user_news_table, NewsArticle
-from .config import GPT_MODEL
+from .config import GPT_MODEL, OPENAI_API_KEY, PAGES_INFO_URL
 
 # def generate_summary(content):
 #     ai_info = [
@@ -18,7 +18,7 @@ from .config import GPT_MODEL
 #         {"role": "user", "content": f"{content}"},
 #     ]
 #
-#     completion = OpenAI(api_key="xxx").chat.completions.create(
+#     completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
 #         model=GPT_MODEL,
 #         messages=ai_info,
 #     )
@@ -34,7 +34,7 @@ from .config import GPT_MODEL
 #         {"role": "user", "content": f"{content}"},
 #     ]
 #
-#     completion = OpenAI(api_key="xxx").chat.completions.create(
+#     completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
 #         model=GPT_MODEL,
 #         messages=ai_info,
 #     )
@@ -65,7 +65,7 @@ def get_pages_info(search_term, page, channel_id=2):
         "channelId": channel_id,
         "type": "searchword",
     }
-    response = requests.get("https://udn.com/api/more", params=pageinfo)
+    response = requests.get(PAGES_INFO_URL, params=pageinfo)
     response.raise_for_status() 
     return response.json().get("lists", [])
 
@@ -102,7 +102,7 @@ def get_new(is_initial=False):
             },
             {"role": "user", "content": f"{title}"},
         ]
-        ai = OpenAI(api_key="xxx").chat.completions.create(
+        ai = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
             model=GPT_MODEL,
             messages=ai_info,
         )
@@ -135,7 +135,7 @@ def get_new(is_initial=False):
                 {"role": "user", "content": " ".join(detailed_news["content"])},
             ]
 
-            completion = OpenAI(api_key="xxx").chat.completions.create(
+            completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
                 model=GPT_MODEL,
                 messages=ai_info,
             )

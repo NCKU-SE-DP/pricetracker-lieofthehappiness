@@ -6,3 +6,5 @@ class App:
     TRACES_SAMPLE_RATE=1.0
     PROFILES_SAMPLE_RATE=1.0
     LOCALHOST="http://localhost:8080"
+    GET_NEW_INTERVAL_MINUTE=100
+

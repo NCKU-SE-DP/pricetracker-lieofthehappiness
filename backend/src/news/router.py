@@ -8,7 +8,7 @@ from ..auth.dependencies import session_opener,authenticate_user_token
 from ..models import NewsArticle
 from .service import get_article_upvote_details, get_new_info, toggle_upvote
 from .schemas import PromptRequest, NewsSumaryRequestSchema
-from .config import GPT_MODEL
+from .config import GPT_MODEL, OPENAI_API_KEY
 app = FastAPI()
 @app.get("/api/v1/news/news")
 def read_news(db=Depends(session_opener)):
@@ -63,7 +63,7 @@ async def search_news(request: PromptRequest):
         },
         {"role": "user", "content": f"{prompt}"},
     ]
-    completion = OpenAI(api_key="xxx").chat.completions.create(
+    completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
         model=GPT_MODEL,
         messages=ai_info,
     )
@@ -74,7 +74,6 @@ async def search_news(request: PromptRequest):
         try:
             response = requests.get(news["titleLink"])
             item_soup = BeautifulSoup(response.text, "html.parser")
-            # 標題
             item_title = item_soup.find("h1", class_="article-content__title").text
             item_time = item_soup.find("time", class_="article-content__time").text
             # 定位到包含文章内容的 <section>
@@ -110,7 +109,7 @@ async def news_summary(
         },
         {"role": "user", "content": f"{payload.content}"},
     ]
-    completion = OpenAI(api_key="xxx").chat.completions.create(
+    completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
         model=GPT_MODEL,
         messages=ai_info,
     )

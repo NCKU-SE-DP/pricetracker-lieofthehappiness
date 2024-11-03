@@ -31,7 +31,7 @@ def start_scheduler():
         # should change into simple factory pattern
         get_new()
     db.close()
-    Scheduler.add_job(get_new, "interval", minutes=100)
+    Scheduler.add_job(get_new, "interval", minutes=App.GET_NEW_INTERVAL_MINUTE)
     Scheduler.start()
 
 @app.on_event("shutdown")
