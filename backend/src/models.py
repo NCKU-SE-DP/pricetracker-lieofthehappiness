@@ -1,4 +1,4 @@
-from .config import auth
+from .config import Auth
 from sqlalchemy import (Column, ForeignKey, Integer, String, Table, Text)
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -13,8 +13,8 @@ user_news_table = Table(
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(auth.max_username_size), unique=True, nullable=False)
-    hashed_password = Column(String(auth.max_password_size), nullable=False)
+    username = Column(String(Auth.MAX_USERNAME_SIZE), unique=True, nullable=False)
+    hashed_password = Column(String(Auth.MAX_PASSWORD_SIZE), nullable=False)
     upvoted_news = relationship(
         "NewsArticle",
         secondary=user_news_table,

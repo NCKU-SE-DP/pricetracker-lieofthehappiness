@@ -77,7 +77,7 @@ def get_new_info(search_term, is_initial=False):
     :return:
     """
     all_news_info = []
-    # iterate pages to get more news data, not actually get all news data
+
     if is_initial:
         for pages in range(1, 10):
             page_info = get_pages_info(search_term, pages)

@@ -6,7 +6,7 @@ from openai import OpenAI
 from bs4 import BeautifulSoup
 from ..auth.dependencies import session_opener,authenticate_user_token
 from ..models import NewsArticle
-from .service import get_article_upvote_details, get_new_info, toggle_upvote
+from .utils import get_article_upvote_details, get_new_info, toggle_upvote
 from .schemas import PromptRequest, NewsSumaryRequestSchema
 from .config import GPT_MODEL, OPENAI_API_KEY
 app = FastAPI()

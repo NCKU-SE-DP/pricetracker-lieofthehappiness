@@ -16,7 +16,7 @@ src
 │  ├─ config.py
 │  ├─ router.py
 │  ├─ schemas.py
-│  ├─ service.py
+│  ├─ utils.py
 │  └─ __init__.py
 ├─ prices
 │  ├─ constants.py
