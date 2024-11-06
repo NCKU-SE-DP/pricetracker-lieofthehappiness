@@ -5,6 +5,11 @@ from .constants import PRICES_URL
 def get_necessities_prices(
         category=Query(None), commodity=Query(None)
 ):
+    """
+    :param category: 商品類別
+    :param commodity: 商品名稱
+    :return: JSON 格式的商品價格資訊
+    """
     return requests.get(
         PRICES_URL,
         params={"CategoryName": category, "Name": commodity},
