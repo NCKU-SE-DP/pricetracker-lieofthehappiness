@@ -1,6 +1,7 @@
-from fastapi import Query
+from fastapi import Query, FastAPI
 import requests
 from .constants import PRICES_URL
+app=FastAPI()
 @app.get("/api/v1/prices/necessities-price")
 def get_necessities_prices(
         category=Query(None), commodity=Query(None)

@@ -6,8 +6,7 @@ src
 │  ├─ dependencies.py
 │  ├─ schemas.py
 │  ├─ services.py
-│  ├─ utils.py
-│  └─ __init__.py
+│  └── utils.py
 ├─ config.py
 ├─ database.py
 ├─ main.py
@@ -16,16 +15,13 @@ src
 │  ├─ config.py
 │  ├─ router.py
 │  ├─ schemas.py
-│  ├─ utils.py
-│  └─ __init__.py
+│  └─ utils.py
 ├─ prices
 │  ├─ constants.py
-│  ├─ router.py
-│  └─ __init__.py
-├─ users
-│  ├─ constants.py
-│  ├─ router.py
-│  └─ __init__.py
-└─ __init__.py
+│  └─ router.py
+└─ users
+   ├─ constants.py
+   └─ router.py
+
 
 ```

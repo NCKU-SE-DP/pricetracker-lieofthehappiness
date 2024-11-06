@@ -5,7 +5,6 @@ from openai import OpenAI
 from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
-from sqlalchemy.orm import Session
 from ..models import user_news_table, NewsArticle
 from .config import GPT_MODEL, OPENAI_API_KEY, PAGES_INFO_URL
 
@@ -71,10 +70,10 @@ def get_pages_info(search_term, page, channel_id=2):
 
 def get_new_info(search_term, is_initial=False):
     """
-    get new
-    :param search_term:
-    :param is_initial:
-    :return:
+    根據搜尋詞獲取新聞文章
+    :param search_term:關鍵字
+    :param is_initial:是否獲取多個頁面的新聞資料
+    :return:包含新聞資料的列表
     """
     all_news_info = []
 
@@ -88,8 +87,8 @@ def get_new_info(search_term, is_initial=False):
 
 def get_new(is_initial=False):
     """
-    get new info
-    :param is_initial:
+    獲取並處理相關的新聞資料，並將符合條件的新聞存入資料庫
+    :param is_initial:是否需要抓取多頁的新聞
     :return:
     """
     news_data = get_new_info("價格", is_initial=is_initial)
@@ -146,6 +145,12 @@ def get_new(is_initial=False):
             add_new(detailed_news)
 
 def get_article_upvote_details(article_id, userid, db):
+    """
+    :param article_id: 
+    :param userid: 
+    :param db: 資料庫的 session
+    :return: (點贊總數, 當前使用者是否已點贊)
+    """
     total_upvotes = (
         db.query(user_news_table)
         .filter_by(news_articles_id=article_id)
@@ -162,6 +167,12 @@ def get_article_upvote_details(article_id, userid, db):
     return total_upvotes, voted
 
 def toggle_upvote(articlesid, userid, db):
+    """
+    :param articlesid: 欲 upvote 或取消 upvote 的文章 ID。
+    :param userid: 執行 upvote 操作的用戶 ID。
+    :param db: 資料庫會話，用來執行查詢和操作。
+    :return: "Upvote removed" 或 "Article upvoted" 字串，表示操作結果。
+    """
     existing_upvote = db.execute(
         select(user_news_table).where(
             user_news_table.c.news_articles_id ==articlesid,

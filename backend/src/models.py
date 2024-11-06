@@ -1,7 +1,7 @@
-from .config import Auth
 from sqlalchemy import (Column, ForeignKey, Integer, String, Table, Text)
 from sqlalchemy.orm import relationship
 from .database import Base
+from .config import Auth
 user_news_table = Table(
     "user_news_upvotes",
     Base.metadata,
