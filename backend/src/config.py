@@ -8,4 +8,6 @@ class App:
     PROFILES_SAMPLE_RATE=1.0
     LOCALHOST="http://localhost:8080"
     GET_NEW_INTERVAL_MINUTE=100
+class Database:
+    TOKENURl="/api/v1/users/login"
 

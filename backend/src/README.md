@@ -3,7 +3,6 @@
 src
 ├─ auth
 │  ├─ config.py
-│  ├─ dependencies.py
 │  ├─ schemas.py
 │  ├─ services.py
 │  └── utils.py
@@ -22,6 +21,5 @@ src
 └─ users
    ├─ constants.py
    └─ router.py
-
 
 ```

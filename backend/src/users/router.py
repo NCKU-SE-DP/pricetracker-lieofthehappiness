@@ -10,7 +10,7 @@ from ..auth.services import check_user_password_is_correct, create_access_token
 from ..models import User
 from ..auth.schemas import UserAuthSchema
 from ..auth.config import pwd_context
-from ..auth.dependencies import session_opener
+from ..database import session_opener
 from ..auth.services import authenticate_user_token
 app=FastAPI()
 @app.post("/api/v1/users/login")

@@ -3,7 +3,7 @@ from jose import jwt
 from fastapi import Depends
 from .config import SECRET_KEY, ALGORITHM, TOKEN_EXPIRE_TIME
 from .utils import verify
-from .dependencies import oauth2_scheme, session_opener
+from ..database import oauth2_scheme, session_opener
 from ..models import User
 
 def check_user_password_is_correct(db, username, password):

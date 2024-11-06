@@ -1,11 +1,10 @@
 from fastapi import FastAPI
-from sqlalchemy.orm import sessionmaker
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 import sentry_sdk
 from .models import NewsArticle
 from .config import App
-from .database import engine
+from .database import SessionLocal
 from .news.utils import get_new
 app = FastAPI()
 sentry_sdk.init(
@@ -14,7 +13,6 @@ sentry_sdk.init(
     profiles_sample_rate=App.PROFILES_SAMPLE_RATE,
 )
 Scheduler=BackgroundScheduler()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 app.add_middleware(
     CORSMiddleware,  # noqa
