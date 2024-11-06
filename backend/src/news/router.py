@@ -4,7 +4,7 @@ import json
 from fastapi import Depends, FastAPI
 from openai import OpenAI
 from bs4 import BeautifulSoup
-from ..auth.dependencies import session_opener
+from ..database import session_opener
 from ..auth.services import authenticate_user_token
 from ..models import NewsArticle
 from .utils import get_article_upvote_details, get_new_info, toggle_upvote
