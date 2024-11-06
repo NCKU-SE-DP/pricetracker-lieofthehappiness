@@ -5,7 +5,7 @@ src
 │  ├─ config.py
 │  ├─ schemas.py
 │  ├─ services.py
-│  └── utils.py
+│  └─ utils.py
 ├─ config.py
 ├─ database.py
 ├─ main.py
@@ -14,7 +14,7 @@ src
 │  ├─ config.py
 │  ├─ router.py
 │  ├─ schemas.py
-│  └─ utils.py
+│  └─ services.py
 ├─ prices
 │  ├─ constants.py
 │  └─ router.py

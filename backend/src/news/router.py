@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 from ..database import session_opener
 from ..auth.services import authenticate_user_token
 from ..models import NewsArticle
-from .utils import get_article_upvote_details, get_new_info, toggle_upvote
+from .services import get_article_upvote_details, get_new_info, toggle_upvote
 from .schemas import PromptRequest, NewsSumaryRequestSchema
 from .config import GPT_MODEL, OPENAI_API_KEY
 app = FastAPI()
