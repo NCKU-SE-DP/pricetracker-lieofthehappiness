@@ -1,0 +1,1 @@
+PRICES_URL="https://opendata.ey.gov.tw/api/ConsumerProtection/NecessitiesPrice"
