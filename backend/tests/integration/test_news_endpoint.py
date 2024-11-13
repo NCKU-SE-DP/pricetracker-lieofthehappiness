@@ -128,11 +128,11 @@ def mock_openai(mocker, return_content):
 def test_search_news(mocker):
     mock_openai(mocker, "keywords")
 
-    mock_get_new_info = mocker.patch("src.news.services.get_new_info", return_value=[
+    mock_get_new_info = mocker.patch("src.news.router.get_new_info", return_value=[
         {"titleLink": "http://example.com/news1"}
     ])
 
-    mock_get = mocker.patch("src.news.router.requests.get", return_value=mocker.Mock(
+    mock_get = mocker.patch("src.news.services.requests.get", return_value=mocker.Mock(
         text="""
         <html>
         <h1 class="article-content__title">Test Title</h1>
@@ -174,7 +174,6 @@ def test_news_summary(mocker, test_token):
 def test_upvote_article(test_user_and_articles, test_token):
     user, articles = test_user_and_articles
     headers = {"Authorization": f"Bearer {test_token}"}
-
     response = client.post(f"/api/v1/news/{articles[0].id}/upvote", headers=headers)
     assert response.status_code == 200
     assert response.json()["message"] == "Article upvoted"
@@ -183,7 +182,6 @@ def test_upvote_article(test_user_and_articles, test_token):
 def test_downvote_article(test_user_and_articles, test_token):
     user, articles = test_user_and_articles
     headers = {"Authorization": f"Bearer {test_token}"}
-
     response = client.post(f"/api/v1/news/{articles[0].id}/upvote", headers=headers)
     assert response.status_code == 200
     assert response.json()["message"] == "Upvote removed"
