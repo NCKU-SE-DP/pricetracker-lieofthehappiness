@@ -132,7 +132,7 @@ def test_search_news(mocker):
         {"titleLink": "http://example.com/news1"}
     ])
 
-    mock_get = mocker.patch("src.main.requests.get", return_value=mocker.Mock(
+    mock_get = mocker.patch("src.news.services.requests.get", return_value=mocker.Mock(
         text="""
         <html>
         <h1 class="article-content__title">Test Title</h1>
