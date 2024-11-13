@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends
 from datetime import timedelta
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -12,8 +12,13 @@ from ..auth.schemas import UserAuthSchema
 from ..auth.config import pwd_context
 from ..database import session_opener
 from ..auth.services import authenticate_user_token
-app=FastAPI()
-@app.post("/api/v1/users/login")
+from fastapi import APIRouter
+router = APIRouter(
+    prefix="/users",
+    tags=["users"],
+    responses={404: {"description": "Not found"}},
+)
+@router.post("/login")
 async def login_for_access_token(
         form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(session_opener)
 ):
@@ -28,7 +33,7 @@ async def login_for_access_token(
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/api/v1/users/register")
+@router.post("/register")
 def create_user(user: UserAuthSchema, db: Session = Depends(session_opener)):
     """
     :param user: 使用者註冊信息
@@ -42,7 +47,7 @@ def create_user(user: UserAuthSchema, db: Session = Depends(session_opener)):
     db.refresh(db_user)
     return db_user
 
-@app.get("/api/v1/users/me")
+@router.get("/me")
 def read_users_me(user=Depends(authenticate_user_token)):
     """
     :param user: 
