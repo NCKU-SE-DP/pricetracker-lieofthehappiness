@@ -135,7 +135,7 @@ async def news_summary(
         response["reason"] = result["原因"]
     return response
 
-@router.post("/{id}/upvote")
+@router.post("/{article_id}/upvote")
 def upvote_article(
         article_id,
         db=Depends(session_opener),
