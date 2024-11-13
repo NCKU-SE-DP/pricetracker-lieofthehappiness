@@ -9,7 +9,7 @@ from .news.services import get_new
 from .prices.router import router as prices_router
 from .news.router import router as news_router
 from .users.router import router as users_router
-from openai import OpenAI
+
 
 app = FastAPI()
 app.include_router(news_router, prefix=App.FASTAPI_PREFIX)
