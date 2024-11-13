@@ -29,7 +29,7 @@ def mock_necessities_data():
     ]
 
 
-@patch("main.requests.get")
+@patch("src.main.requests.get")
 def test_get_necessities_prices(mock_get, mock_necessities_data):
     mock_response = mock_get.return_value
     mock_response.status_code = 200
