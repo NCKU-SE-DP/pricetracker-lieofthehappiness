@@ -6,7 +6,15 @@ from .models import NewsArticle
 from .config import App
 from .database import SessionLocal
 from .news.services import get_new
+from .prices.router import router as prices_router
+from .news.router import router as news_router
+from .users.router import router as users_router
+
+
 app = FastAPI()
+app.include_router(news_router, prefix=App.FASTAPI_PREFIX)
+app.include_router(users_router, prefix=App.FASTAPI_PREFIX)
+app.include_router(prices_router, prefix=App.FASTAPI_PREFIX)
 sentry_sdk.init(
     dsn=App.DSN,
     traces_sample_rate=App.TRACES_SAMPLE_RATE,

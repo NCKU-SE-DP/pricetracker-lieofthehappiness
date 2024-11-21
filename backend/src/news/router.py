@@ -1,7 +1,7 @@
 import itertools
 import requests
 import json
-from fastapi import Depends, FastAPI
+from fastapi import Depends
 from openai import OpenAI
 from bs4 import BeautifulSoup
 from ..database import session_opener
@@ -10,8 +10,13 @@ from ..models import NewsArticle
 from .services import get_article_upvote_details, get_new_info, toggle_upvote
 from .schemas import PromptRequest, NewsSumaryRequestSchema
 from .config import GPT_MODEL, OPENAI_API_KEY
-app = FastAPI()
-@app.get("/api/v1/news/news")
+from fastapi import APIRouter
+router = APIRouter(
+    prefix="/news",
+    tags=["news"],
+    responses={404: {"description": "Not found"}},
+)
+@router.get("/news")
 def read_news(db=Depends(session_opener)):
     """
     獲取最新的新聞文章
@@ -27,7 +32,7 @@ def read_news(db=Depends(session_opener)):
         )
     return result
 
-@app.get("/api/v1/news/user_news")
+@router.get("/user_news")
 def read_user_news(
         db=Depends(session_opener),
         usertoken=Depends(authenticate_user_token)
@@ -52,7 +57,7 @@ def read_user_news(
     return result
 
 _id_counter = itertools.count(start=1000000)
-@app.post("/api/v1/news/search_news")
+@router.post("/search_news")
 async def search_news(request: PromptRequest):
     """
     :param request: `PromptRequest` 類型的請求對象，包含使用者輸入的新聞描述文字 (prompt)
@@ -101,7 +106,7 @@ async def search_news(request: PromptRequest):
             print(error)
     return sorted(news_list, key=lambda x: x["time"], reverse=True)
 
-@app.post("/api/v1/news/news_summary")
+@router.post("/news_summary")
 async def news_summary(
         payload: NewsSumaryRequestSchema, user=Depends(authenticate_user_token)
 ):
@@ -130,7 +135,7 @@ async def news_summary(
         response["reason"] = result["原因"]
     return response
 
-@app.post("/api/v1/news/{id}/upvote")
+@router.post("/{article_id}/upvote")
 def upvote_article(
         article_id,
         db=Depends(session_opener),

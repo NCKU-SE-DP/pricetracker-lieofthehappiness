@@ -2,3 +2,5 @@
 __pycache__
 .env
 backend/.scannerwork
+backend/coverage.xml
+backend/.coverage
