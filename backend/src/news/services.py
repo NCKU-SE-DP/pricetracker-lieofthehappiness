@@ -2,12 +2,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert, select
 import json
 from openai import OpenAI
-from urllib.parse import quote
-import requests
-from bs4 import BeautifulSoup
 from ..models import user_news_table, NewsArticle
-from .config import GPT_MODEL, OPENAI_API_KEY, PAGES_INFO_URL
-from ..crawler import udn_crawler
+from .config import GPT_MODEL, OPENAI_API_KEY
+from ..crawler.udn_crawler import UDNCrawler
+from ..crawler.crawler_base import NewsWithSummary
+udn_crawler = UDNCrawler()
 # def generate_summary(content):
 #     ai_info = [
 #         {
@@ -39,34 +38,15 @@ from ..crawler import udn_crawler
 #     )
 #     return completion.choices[0].message.content
 
-def add_new(news_data):
+def add_new(news_data: NewsWithSummary):
     """
     add new to db
     :param news_data: news info
     :return:
     """
     session = Session()
-    session.add(NewsArticle(
-        url=news_data["url"],
-        title=news_data["title"],
-        time=news_data["time"],
-        content=" ".join(news_data["content"]),  # 將內容list轉換為字串
-        summary=news_data["summary"],
-        reason=news_data["reason"],
-    ))
-    session.commit()
+    UDNCrawler.save(news_data, session)
     session.close()
-
-def get_pages_info(search_term, page, channel_id=2):
-    pageinfo = {
-        "page": page,
-        "id": f"search:{quote(search_term)}",
-        "channelId": channel_id,
-        "type": "searchword",
-    }
-    response = requests.get(PAGES_INFO_URL, params=pageinfo)
-    response.raise_for_status() 
-    return response.json().get("lists", [])
 
 def get_new_info(search_term, is_initial=False):
     """
@@ -75,15 +55,11 @@ def get_new_info(search_term, is_initial=False):
     :param is_initial:是否獲取多個頁面的新聞資料
     :return:包含新聞資料的列表
     """
-    all_news_info = []
-
-    if is_initial:
-        for pages in range(1, 10):
-            page_info = get_pages_info(search_term, pages)
-            all_news_info.extend(page_info)    
+    if is_initial:  
+        return UDNCrawler.get_headline(search_term,page=(1,10))    
     else:
-        all_news_info = get_pages_info(search_term, page=1)
-    return all_news_info
+        return UDNCrawler.get_headline(search_term,1) 
+    
 
 def get_new(is_initial=False):
     """
@@ -93,7 +69,8 @@ def get_new(is_initial=False):
     """
     news_data = get_new_info("價格", is_initial=is_initial)
     for news in news_data:
-        title = news["title"]
+        title = news.title
+        url=news.url
         ai_info = [
             {
                 "role": "system",
@@ -107,31 +84,13 @@ def get_new(is_initial=False):
         )
         relevance = ai.choices[0].message.content
         if relevance == "high":
-            response = requests.get(news["titleLink"])
-            article_soup = BeautifulSoup(response.text, "html.parser")
-            # 標題
-            article_title = article_soup.find("h1", class_="article-content__title").text
-            article_time = article_soup.find("time", class_="article-content__time").text
-            # 定位到包含文章内容的 <section>
-            content_section = article_soup.find("section", class_="article-content__editor")
-
-            paragraphs = [
-                paragraphinfo.text
-                for paragraphinfo in content_section.find_all("p")
-                if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
-            ]
-            detailed_news =  {
-                "url": news["titleLink"],
-                "title":  article_title,
-                "time": article_time,
-                "content": paragraphs,
-            }
+            news_from_crawler=UDNCrawler.parse(url)
             ai_info = [
                 {
                     "role": "system",
                     "content": "你是一個新聞摘要生成機器人，請統整新聞中提及的影響及主要原因 (影響、原因各50個字，請以json格式回答 {'影響': '...', '原因': '...'})",
                 },
-                {"role": "user", "content": " ".join(detailed_news["content"])},
+                {"role": "user", "content": " ".join(news_from_crawler.content)},
             ]
 
             completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
@@ -140,8 +99,15 @@ def get_new(is_initial=False):
             )
             result = completion.choices[0].message.content
             result = json.loads(result)
-            detailed_news["summary"] = result["影響"]
-            detailed_news["reason"] = result["原因"]
+            detailed_news=NewsWithSummary(
+                title=title,
+                url=url,
+                time=news_from_crawler.time,
+                content=news_from_crawler.content,
+                summary=result["影響"],
+                reason=result["原因"]
+
+            )
             add_new(detailed_news)
 
 def get_article_upvote_details(article_id, userid, db):

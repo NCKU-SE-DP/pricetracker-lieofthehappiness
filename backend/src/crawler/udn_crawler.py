@@ -33,11 +33,27 @@ UDNCrawler Methods:
 """
 
 from requests import Response
+import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
-
+from urllib.parse import quote
 from .crawler_base import NewsCrawlerBase, Headline, News, NewsWithSummary
-from .exceptions import DomainMismatchException
+
+
+class Page:
+    def __init__(self, page: int, search_term: str, channel_id: str) -> None:
+        self.page = page
+        self.search_term = search_term
+        self.channel_id = channel_id
+        self.type="searchword"
+    def to_dict(self) -> dict:
+        """Convert the Page instance into a dictionary."""
+        return {
+            "page": self.page,
+            "id": f"search:{quote(self.search_term)}",
+            "channelId": self.channel_id,
+            "type": "searchword",
+        }
 
 class UDNCrawler(NewsCrawlerBase):
     CHANNEL_ID = 2
@@ -68,31 +84,65 @@ class UDNCrawler(NewsCrawlerBase):
         page_range = range(*page) if isinstance(page, tuple) else [page]
         headlines = []
         for page_number in page_range:
-            headlines.extend(self._fetch_news(page_number, search_term))
+            headlines.extend(self._fetch_news_headline(page_number, search_term))
         return headlines 
 
-    def _fetch_news(self, page: int, search_term: str) -> list[Headline]:
-        ...
+    def _fetch_news_headline(self, page: int, search_term: str) -> list[Headline]:
+        newsinfo=self._perform_request(self.news_website_url, self._create_search_params(page, search_term))
+        return self._parse_headlines(newsinfo)
+    
     def _create_search_params(self, page: int, search_term: str) -> dict:
-        ...
-
+        pageinfo=Page(page, search_term, self.CHANNEL_ID)
+        return pageinfo.to_dict()
+         
     def _perform_request(self, url: str | None = None, params: dict | None = None) -> Response:
-        ...
+        return requests.get(url, params=params)
 
     @staticmethod
     def _parse_headlines(response: Response) -> list[Headline]:
-        ...
+        list_of_headline=[]
+        response.raise_for_status()
+        news_list=response.json().get("lists", [])
+        for news in news_list:
+            headline=Headline()
+            headline.title=news["title"]
+            headline.url=news["titleLink"]
+            list_of_headline.extend(headline)
+        return list_of_headline       
+
 
     def parse(self, url: str) -> News:
-        ...
-
+        response=requests.get(url)
+        soup=BeautifulSoup(response.text, "html.parser")
+        return self._extract_news(soup, url)
     @staticmethod
     def _extract_news(soup: BeautifulSoup, url: str) -> News:
-        ...
-
-    def save(self, news: NewsWithSummary, db: Session):
-        ...
+        title = soup.find("h1", class_="article-content__title").text
+        time = soup.find("time", class_="article-content__time").text
+        content_section = soup.find("section", class_="article-content__editor")
+        paragraphs = [
+            paragraphinfo.text
+            for paragraphinfo in content_section.find_all("p")
+            if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
+        ]
+        news=News(
+            title=title,
+            url=url,
+            time=time,
+            content=" ".join(paragraphs)
+        )
+        return news
+    def save(self, news_data: NewsWithSummary, db: Session):
+        db.add(NewsWithSummary(
+        url=news_data["url"],
+        title=news_data["title"],
+        time=news_data["time"],
+        content=" ".join(news_data["content"]),  # 將內容list轉換為字串
+        summary=news_data["summary"],
+        reason=news_data["reason"],
+        ))
+        self._commit_changes(db)
 
     @staticmethod
     def _commit_changes(db: Session):
-        ...
+        db.commit()
