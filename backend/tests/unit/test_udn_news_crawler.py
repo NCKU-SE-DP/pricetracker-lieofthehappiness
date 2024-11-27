@@ -101,7 +101,7 @@ class TestUDNCrawler(unittest.TestCase):
     def test_parse_invalid_domain(self):
         invalid_url = "https://example.com/news/test-news"
         with self.assertRaises(DomainMismatchException):
-            self.scraper.parse(invalid_url)
+            self.scraper.validate_and_parse(invalid_url)
 
 
 if __name__ == "__main__":
