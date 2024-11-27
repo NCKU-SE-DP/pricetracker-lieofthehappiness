@@ -6,6 +6,9 @@ from ..models import user_news_table, NewsArticle
 from .config import GPT_MODEL, OPENAI_API_KEY
 from ..crawler.udn_crawler import UDNCrawler
 from ..crawler.crawler_base import NewsWithSummary
+from ..crawler.crawler_base import NewsCrawlerBase
+import requests
+
 udn_crawler = UDNCrawler()
 # def generate_summary(content):
 #     ai_info = [
@@ -45,7 +48,7 @@ def add_new(news_data: NewsWithSummary):
     :return:
     """
     session = Session()
-    UDNCrawler.save(news_data, session)
+    udn_crawler.save(news_data, session)
     session.close()
 
 def get_new_info(search_term, is_initial=False):
@@ -56,9 +59,9 @@ def get_new_info(search_term, is_initial=False):
     :return:包含新聞資料的列表
     """
     if is_initial:  
-        return UDNCrawler.get_headline(search_term,page=(1,10))    
+        return udn_crawler.get_headline(search_term,page=(1,10))    
     else:
-        return UDNCrawler.get_headline(search_term,1) 
+        return udn_crawler.get_headline(search_term,1) 
     
 
 def get_new(is_initial=False):
@@ -84,7 +87,7 @@ def get_new(is_initial=False):
         )
         relevance = ai.choices[0].message.content
         if relevance == "high":
-            news_from_crawler=UDNCrawler.parse(url)
+            news_from_crawler=udn_crawler.parse(url)
             ai_info = [
                 {
                     "role": "system",

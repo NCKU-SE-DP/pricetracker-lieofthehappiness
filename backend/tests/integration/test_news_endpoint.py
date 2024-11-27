@@ -149,13 +149,11 @@ def test_search_news(mocker):
     response = client.post("/api/v1/news/search_news", json=request_body)
 
     assert response.status_code == 200
-
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "Test Title"
     assert data[0]["time"] == "2024-09-10"
     assert data[0]["content"] == "This is a test paragraph."
-
 
 def test_news_summary(mocker, test_token):
     headers = {"Authorization": f"Bearer {test_token}"}

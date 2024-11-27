@@ -112,7 +112,6 @@ class UDNCrawler(NewsCrawlerBase):
     def parse(self, url: str) -> News:
         response=self._perform_request(url=url)
         soup=BeautifulSoup(response.text, "html.parser")
-        print(soup.prettify())
         news=self._extract_news(soup, url)
         return news
     @staticmethod
@@ -125,11 +124,12 @@ class UDNCrawler(NewsCrawlerBase):
             for paragraphinfo in content_section.find_all("p")
             if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
         ]
+        content = " ".join(paragraphs)
         news=News(
             title=title,
             url=url,
             time=time,
-            content=" ".join(paragraphs)
+            content=content
         )
         return news
     def save(self, news_data: NewsWithSummary, db: Session):

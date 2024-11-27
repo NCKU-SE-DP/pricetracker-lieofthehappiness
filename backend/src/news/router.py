@@ -11,7 +11,8 @@ from .services import get_article_upvote_details, get_new_info, toggle_upvote
 from .schemas import PromptRequest, NewsSumaryRequestSchema
 from .config import GPT_MODEL, OPENAI_API_KEY
 from fastapi import APIRouter
-
+from ..crawler.udn_crawler import UDNCrawler
+udn_crawler=UDNCrawler()
 router = APIRouter(
     prefix="/news",
     tags=["news"],
@@ -82,26 +83,18 @@ async def search_news(request: PromptRequest):
     news_items = get_new_info(keywords, is_initial=False)
     for news in news_items:
         try:
-            response = requests.get(news["titleLink"])
-            item_soup = BeautifulSoup(response.text, "html.parser")
-            item_title = item_soup.find("h1", class_="article-content__title").text
-            item_time = item_soup.find("time", class_="article-content__time").text
-            # 定位到包含文章内容的 <section>
-            content_section = item_soup.find("section", class_="article-content__editor")
-
-            paragraphs = [
-                paragraphinfo.text
-                for paragraphinfo in content_section.find_all("p")
-                if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
-            ]
+            news_from_crawler=udn_crawler.parse(news.url)
+            content = news_from_crawler.content
+           
             detailed_news = {
-                "url": news["titleLink"],
-                "title": item_title,
-                "time": item_time,
-                "content": paragraphs,
+                "url": news.url,
+                "title": news.title,
+                "time": news_from_crawler.time,
+                "content": content,
             }
-            detailed_news["content"] = " ".join(detailed_news["content"])
-            detailed_news["id"] = next(_id_counter)
+            
+            detailed_news["id"]  = next(_id_counter)
+            print(detailed_news)
             news_list.append(detailed_news)
         except Exception as error:
             print(error)
