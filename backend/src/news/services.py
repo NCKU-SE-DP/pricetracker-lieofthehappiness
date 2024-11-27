@@ -7,7 +7,7 @@ import requests
 from bs4 import BeautifulSoup
 from ..models import user_news_table, NewsArticle
 from .config import GPT_MODEL, OPENAI_API_KEY, PAGES_INFO_URL
-
+from ..crawler import udn_crawler
 # def generate_summary(content):
 #     ai_info = [
 #         {
