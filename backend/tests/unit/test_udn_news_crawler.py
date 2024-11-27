@@ -2,9 +2,9 @@ import unittest
 from unittest.mock import patch, MagicMock
 from requests.models import Response
 from sqlalchemy.orm import Session
-from backend.src.crawler.crawler_base import NewsWithSummary
-from backend.src.crawler.udn_crawler import  UDNCrawler
-from backend.src.crawler.exceptions import DomainMismatchException
+from src.crawler.crawler_base import NewsWithSummary
+from src.crawler.udn_crawler import  UDNCrawler
+from src.crawler.exceptions import DomainMismatchException
 
 
 
