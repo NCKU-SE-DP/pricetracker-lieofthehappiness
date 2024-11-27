@@ -40,7 +40,7 @@ class TestUDNCrawler(unittest.TestCase):
         }
         mock_get.return_value = mock_response
 
-        headlines = self.scraper._fetch_news(page=1, search_term="technology")
+        headlines = self.scraper._fetch_news_headline(page=1, search_term="technology")
         self.assertEqual(len(headlines), 1)
         self.assertEqual(headlines[0].title, "Test News")
         self.assertEqual(headlines[0].url, "https://udn.com/news/test-news")

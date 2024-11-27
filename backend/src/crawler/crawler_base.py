@@ -5,7 +5,6 @@ from .exceptions import DomainMismatchException
 from pydantic import BaseModel, Field, AnyHttpUrl
 
 
-
 class Headline(BaseModel):
     title: str = Field(
         default=...,

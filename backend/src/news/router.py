@@ -11,6 +11,7 @@ from .services import get_article_upvote_details, get_new_info, toggle_upvote
 from .schemas import PromptRequest, NewsSumaryRequestSchema
 from .config import GPT_MODEL, OPENAI_API_KEY
 from fastapi import APIRouter
+
 router = APIRouter(
     prefix="/news",
     tags=["news"],

@@ -32,13 +32,13 @@ UDNCrawler Methods:
     _commit_changes(db: Session): Commits the changes to the database with error handling.
 """
 
-from requests import Response
+
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 from urllib.parse import quote
 from .crawler_base import NewsCrawlerBase, Headline, News, NewsWithSummary
-
+from requests import Response
 
 class Page:
     def __init__(self, page: int, search_term: str, channel_id: str) -> None:
@@ -104,17 +104,17 @@ class UDNCrawler(NewsCrawlerBase):
         response.raise_for_status()
         news_list=response.json().get("lists", [])
         for news in news_list:
-            headline=Headline()
-            headline.title=news["title"]
-            headline.url=news["titleLink"]
-            list_of_headline.extend(headline)
+            headline=Headline(title=news["title"], url=news["titleLink"])
+            list_of_headline.append(headline)
         return list_of_headline       
 
 
     def parse(self, url: str) -> News:
-        response=requests.get(url)
+        response=self._perform_request(url=url)
         soup=BeautifulSoup(response.text, "html.parser")
-        return self._extract_news(soup, url)
+        print(soup.prettify())
+        news=self._extract_news(soup, url)
+        return news
     @staticmethod
     def _extract_news(soup: BeautifulSoup, url: str) -> News:
         title = soup.find("h1", class_="article-content__title").text
@@ -134,12 +134,12 @@ class UDNCrawler(NewsCrawlerBase):
         return news
     def save(self, news_data: NewsWithSummary, db: Session):
         db.add(NewsWithSummary(
-        url=news_data["url"],
-        title=news_data["title"],
-        time=news_data["time"],
-        content=" ".join(news_data["content"]),  # 將內容list轉換為字串
-        summary=news_data["summary"],
-        reason=news_data["reason"],
+        url=news_data.url,
+        title=news_data.title,
+        time=news_data.time,
+        content=" ".join(news_data.content),  # 將內容list轉換為字串
+        summary=news_data.summary,
+        reason=news_data.reason,
         ))
         self._commit_changes(db)
 
