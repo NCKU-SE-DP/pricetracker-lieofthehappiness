@@ -10,7 +10,7 @@ from src.models import  NewsArticle, User, user_news_table
 from src.news.schemas import NewsSumaryRequestSchema, PromptRequest
 from src.auth.config import pwd_context
 from unittest.mock import Mock
-
+from src.crawler.crawler_base import Headline
 
 SECRET_KEY = "1892dhianiandowqd0n"
 ALGORITHM = "HS256"
@@ -129,10 +129,10 @@ def test_search_news(mocker):
     mock_openai(mocker, "keywords")
 
     mock_get_new_info = mocker.patch("src.news.router.get_new_info", return_value=[
-        {"titleLink": "http://example.com/news1"}
+         Headline(title="Test Title", url="https://udn.com/api/more/testing/news1")
     ])
 
-    mock_get = mocker.patch("src.news.services.requests.get", return_value=mocker.Mock(
+    mock_get = mocker.patch("src.crawler.udn_crawler.requests.get", return_value=mocker.Mock(
         text="""
         <html>
         <h1 class="article-content__title">Test Title</h1>
@@ -149,13 +149,11 @@ def test_search_news(mocker):
     response = client.post("/api/v1/news/search_news", json=request_body)
 
     assert response.status_code == 200
-
     data = response.json()
     assert len(data) == 1
     assert data[0]["title"] == "Test Title"
     assert data[0]["time"] == "2024-09-10"
     assert data[0]["content"] == "This is a test paragraph."
-
 
 def test_news_summary(mocker, test_token):
     headers = {"Authorization": f"Bearer {test_token}"}
