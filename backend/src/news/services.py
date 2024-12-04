@@ -1,45 +1,17 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert, select
 import json
-from openai import OpenAI
 from ..models import user_news_table, NewsArticle
-from .config import GPT_MODEL, OPENAI_API_KEY
+from .config import OPENAI_API_KEY
 from ..crawler.udn_crawler import UDNCrawler
 from ..crawler.crawler_base import NewsWithSummary
 from ..crawler.crawler_base import NewsCrawlerBase
 import requests
-
+from ..llm_clients.openai_clients import OpenAIClient
 udn_crawler = UDNCrawler()
-# def generate_summary(content):
-#     ai_info = [
-#         {
-#             "role": "system",
-#             "content": "你是一個新聞摘要生成機器人，請統整新聞中提及的影響及主要原因 (影響、原因各50個字，請以json格式回答 {'影響': '...', '原因': '...'})",
-#         },
-#         {"role": "user", "content": f"{content}"},
-#     ]
-#
-#     completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
-#         model=GPT_MODEL,
-#         messages=ai_info,
-#     )
-#     return completion.choices[0].message.content
+openai_client = OpenAIClient(_api_key= OPENAI_API_KEY)
 
-#
-# def extract_search_keywords(content):
-#     ai_info = [
-#         {
-#             "role": "system",
-#             "content": "你是一個關鍵字提取機器人，用戶將會輸入一段文字，表示其希望看見的新聞內容，請提取出用戶希望看見的關鍵字，請截取最重要的關鍵字即可，避免出現「新聞」、「資訊」等混淆搜尋引擎的字詞。(僅須回答關鍵字，若有多個關鍵字，請以空格分隔)",
-#         },
-#         {"role": "user", "content": f"{content}"},
-#     ]
-#
-#     completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
-#         model=GPT_MODEL,
-#         messages=ai_info,
-#     )
-#     return completion.choices[0].message.content
+
 
 def add_new(news_data: NewsWithSummary):
     """
@@ -74,33 +46,10 @@ def get_new(is_initial=False):
     for news in news_data:
         title = news.title
         url=news.url
-        ai_info = [
-            {
-                "role": "system",
-                "content": "你是一個關聯度評估機器人，請評估新聞標題是否與「民生用品的價格變化」相關，並給予'high'、'medium'、'low'評價。(僅需回答'high'、'medium'、'low'三個詞之一)",
-            },
-            {"role": "user", "content": f"{title}"},
-        ]
-        ai = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
-            model=GPT_MODEL,
-            messages=ai_info,
-        )
-        relevance = ai.choices[0].message.content
+        relevance = openai_client.evaluate_relevance(title)
         if relevance == "high":
             news_from_crawler=udn_crawler.parse(url)
-            ai_info = [
-                {
-                    "role": "system",
-                    "content": "你是一個新聞摘要生成機器人，請統整新聞中提及的影響及主要原因 (影響、原因各50個字，請以json格式回答 {'影響': '...', '原因': '...'})",
-                },
-                {"role": "user", "content": " ".join(news_from_crawler.content)},
-            ]
-
-            completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
-                model=GPT_MODEL,
-                messages=ai_info,
-            )
-            result = completion.choices[0].message.content
+            result = openai_client.generate_summary(news_from_crawler.content)
             result = json.loads(result)
             detailed_news=NewsWithSummary(
                 title=title,
@@ -109,7 +58,6 @@ def get_new(is_initial=False):
                 content=news_from_crawler.content,
                 summary=result["影響"],
                 reason=result["原因"]
-
             )
             add_new(detailed_news)
 
