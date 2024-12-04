@@ -34,6 +34,7 @@ jobs:
 
       - name: Set up virtual environment and install dependencies
         run: |
+          python -m venv venv
           .\venv\Scripts\activate
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
@@ -45,6 +46,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+
           .\venv\Scripts\activate
           cd backend
           pytest tests/crawler --cov=src --cov-report=xml --disable-warnings
@@ -53,6 +55,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+
           .\venv\Scripts\activate
           cd backend
           pytest tests/llm_clients --cov=src --cov-report=xml --disable-warnings
@@ -61,6 +64,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
+
           .\venv\Scripts\activate
           cd backend
           pytest tests/integration --cov=src --cov-report=xml --disable-warnings
