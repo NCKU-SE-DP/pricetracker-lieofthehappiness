@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from .config import SystemContent
 from .llm_base import LLMClientBase, MessagePassingInterface
 import aisuite as ai
+
 system_content=SystemContent()
 
 
@@ -32,7 +33,6 @@ class LLMClientTemplate(LLMClientBase, ABC):
         return self._generate_text(messages=ai_info)
  
     def _generate_text(self,messages):
-        
         completion = self.client.chat.completions.create(
             
             model=self.model,
