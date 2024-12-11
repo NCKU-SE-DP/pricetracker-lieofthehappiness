@@ -5,14 +5,15 @@ from fastapi import Depends
 from ..database import session_opener
 from ..auth.services import authenticate_user_token
 from ..models import NewsArticle
-from .services import get_article_upvote_details, get_new_info, toggle_upvote
-from .schemas import PromptRequest, NewsSumaryRequestSchema
+from .services import get_article_upvote_details, get_new_info, toggle_upvote,openai_client, anthropic_client
+from .schemas import PromptRequest, NewsSumaryRequestSchema, NewsSumaryCustomModelSchema
 from fastapi import APIRouter
 from ..crawler.udn_crawler import UDNCrawler
-from ..llm_clients.openai_clients import OpenAIClient
-from .config import OPENAI_API_KEY
+
+
 udn_crawler=UDNCrawler()
-openai_client=OpenAIClient(_api_key= OPENAI_API_KEY)
+llm_client=openai_client
+
 router = APIRouter(
     prefix="/news",
     tags=["news"],
@@ -66,7 +67,7 @@ async def search_news(request: PromptRequest):
     :return: JSON 格式的新聞列表
     """
     news_list = []
-    keywords = openai_client.extract_search_keywords(request.prompt)
+    keywords = llm_client.extract_search_keywords(request.prompt)
     news_items = get_new_info(keywords, is_initial=False)
     for news in news_items:
         try:
@@ -97,7 +98,7 @@ async def news_summary(
     :return: JSON 格式的摘要結果
     """
     response = {}
-    result = openai_client.generate_summary(payload.content)
+    result = llm_client.generate_summary(payload.content)
     if result:
         result = json.loads(result)
         response["summary"] = result["影響"]
@@ -118,3 +119,17 @@ def upvote_article(
     """
     message = toggle_upvote(article_id, usertoken.id, db)
     return {"message": message}
+@router.post("/news_summary_custom_model")
+async def summarize_news_with_custome_model(payload: NewsSumaryCustomModelSchema, user= Depends(authenticate_user_token)):
+    response = {}
+    if(payload.ai_model=="anthropic") :
+        llm_client=anthropic_client
+    if(payload.ai_model=="openai") :
+        llm_client=openai_client 
+    result = llm_client.generate_summary(payload.content)
+    if result:
+        result = json.loads(result)
+        response["summary"] = result["影響"]
+        response["reason"] = result["原因"]
+    return response
+    

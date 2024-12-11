@@ -2,15 +2,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert, select
 import json
 from ..models import user_news_table, NewsArticle
-from .config import OPENAI_API_KEY
+from .config import OPENAI_API_KEY, ANTHROPIC_KEY
 from ..crawler.udn_crawler import UDNCrawler
 from ..crawler.crawler_base import NewsWithSummary
 from ..crawler.crawler_base import NewsCrawlerBase
 import requests
 from ..llm_clients.openai_clients import OpenAIClient
+from ..llm_clients.anthropic_clients import AnthropicClient
 udn_crawler = UDNCrawler()
-openai_client = OpenAIClient(_api_key= OPENAI_API_KEY)
-
+openai_client = OpenAIClient(api_key= OPENAI_API_KEY)
+anthropic_client = AnthropicClient(api_key=ANTHROPIC_KEY)
 
 
 def add_new(news_data: NewsWithSummary):
