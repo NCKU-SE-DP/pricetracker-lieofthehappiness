@@ -81,7 +81,7 @@ async def search_news(request: PromptRequest):
                 "content": content,
             }
             detailed_news["id"]  = next(_id_counter)
-            print(detailed_news)
+
             news_list.append(detailed_news)
         except Exception as error:
             print(error)
