@@ -2,17 +2,17 @@ import itertools
 import requests
 import json
 from fastapi import Depends
-from openai import OpenAI
-from bs4 import BeautifulSoup
 from ..database import session_opener
 from ..auth.services import authenticate_user_token
 from ..models import NewsArticle
 from .services import get_article_upvote_details, get_new_info, toggle_upvote
 from .schemas import PromptRequest, NewsSumaryRequestSchema
-from .config import GPT_MODEL, OPENAI_API_KEY
 from fastapi import APIRouter
 from ..crawler.udn_crawler import UDNCrawler
+from ..llm_clients.openai_clients import OpenAIClient
+from .config import OPENAI_API_KEY
 udn_crawler=UDNCrawler()
+openai_client=OpenAIClient(_api_key= OPENAI_API_KEY)
 router = APIRouter(
     prefix="/news",
     tags=["news"],
@@ -65,21 +65,8 @@ async def search_news(request: PromptRequest):
     :param request: `PromptRequest` 類型的請求對象，包含使用者輸入的新聞描述文字 (prompt)
     :return: JSON 格式的新聞列表
     """
-    prompt = request.prompt
     news_list = []
-    ai_info = [
-        {
-            "role": "system",
-            "content": "你是一個關鍵字提取機器人，用戶將會輸入一段文字，表示其希望看見的新聞內容，請提取出用戶希望看見的關鍵字，請截取最重要的關鍵字即可，避免出現「新聞」、「資訊」等混淆搜尋引擎的字詞。(僅須回答關鍵字，若有多個關鍵字，請以空格分隔)",
-        },
-        {"role": "user", "content": f"{prompt}"},
-    ]
-    completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
-        model=GPT_MODEL,
-        messages=ai_info,
-    )
-    keywords = completion.choices[0].message.content
-    # should change into simple factory pattern
+    keywords = openai_client.extract_search_keywords(request.prompt)
     news_items = get_new_info(keywords, is_initial=False)
     for news in news_items:
         try:
@@ -92,7 +79,6 @@ async def search_news(request: PromptRequest):
                 "time": news_from_crawler.time,
                 "content": content,
             }
-            
             detailed_news["id"]  = next(_id_counter)
             print(detailed_news)
             news_list.append(detailed_news)
@@ -111,18 +97,7 @@ async def news_summary(
     :return: JSON 格式的摘要結果
     """
     response = {}
-    ai_info = [
-        {
-            "role": "system",
-            "content": "你是一個新聞摘要生成機器人，請統整新聞中提及的影響及主要原因 (影響、原因各50個字，請以json格式回答 {'影響': '...', '原因': '...'})",
-        },
-        {"role": "user", "content": f"{payload.content}"},
-    ]
-    completion = OpenAI(api_key=OPENAI_API_KEY).chat.completions.create(
-        model=GPT_MODEL,
-        messages=ai_info,
-    )
-    result = completion.choices[0].message.content
+    result = openai_client.generate_summary(payload.content)
     if result:
         result = json.loads(result)
         response["summary"] = result["影響"]

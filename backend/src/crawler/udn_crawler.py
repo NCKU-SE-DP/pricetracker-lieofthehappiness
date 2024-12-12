@@ -133,14 +133,7 @@ class UDNCrawler(NewsCrawlerBase):
         )
         return news
     def save(self, news_data: NewsWithSummary, db: Session):
-        db.add(NewsWithSummary(
-        url=news_data.url,
-        title=news_data.title,
-        time=news_data.time,
-        content=" ".join(news_data.content),  # 將內容list轉換為字串
-        summary=news_data.summary,
-        reason=news_data.reason,
-        ))
+        db.add(news_data)
         self._commit_changes(db)
 
     @staticmethod
