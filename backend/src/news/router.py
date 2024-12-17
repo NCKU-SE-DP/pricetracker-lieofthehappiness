@@ -132,4 +132,7 @@ async def summarize_news_with_custome_model(payload: NewsSumaryCustomModelSchema
         response["summary"] = result["影響"]
         response["reason"] = result["原因"]
     return response
-    
+
+@router.get("/sentry-debug")
+async def trigger_error():
+    division_by_zero = 1 / 0  

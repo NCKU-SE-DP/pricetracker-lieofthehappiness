@@ -10,16 +10,24 @@ from .prices.router import router as prices_router
 from .news.router import router as news_router
 from .users.router import router as users_router
 
+sentry_sdk.init(
+    dsn=App.DSN,
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=App.TRACES_SAMPLE_RATE,
+    _experiments={
+        # Set continuous_profiling_auto_start to True
+        # to automatically start the profiler on when
+        # possible.
+        "continuous_profiling_auto_start": True,
+    },
+)
 
 app = FastAPI()
 app.include_router(news_router, prefix=App.FASTAPI_PREFIX)
 app.include_router(users_router, prefix=App.FASTAPI_PREFIX)
 app.include_router(prices_router, prefix=App.FASTAPI_PREFIX)
-sentry_sdk.init(
-    dsn=App.DSN,
-    traces_sample_rate=App.TRACES_SAMPLE_RATE,
-    profiles_sample_rate=App.PROFILES_SAMPLE_RATE,
-)
+
 Scheduler=BackgroundScheduler()
 
 app.add_middleware(
