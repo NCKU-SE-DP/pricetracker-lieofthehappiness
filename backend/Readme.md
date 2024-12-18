@@ -1,18 +1,26 @@
-
 ```
 backend
+├─ .coverage
+├─ .pytest_cache
+├─ .scannerwork
 ├─ alembic
 │  ├─ env.py
 │  ├─ README
 │  └─ script.py.mako
 ├─ alembic.ini
+├─ app.log
+├─ app_rotating.log
+├─ coverage.xml
 ├─ dockerfile
 ├─ news_database.db
 ├─ pytest.ini
+├─ README.md
 ├─ requirements.txt
 ├─ src
+│  ├─ .env
 │  ├─ auth
 │  │  ├─ config.py
+│  │  ├─ exceptions.py
 │  │  ├─ schemas.py
 │  │  ├─ services.py
 │  │  ├─ utils.py
@@ -24,28 +32,36 @@ backend
 │  │  ├─ udn_crawler.py
 │  │  ├─ __init__.py
 │  ├─ database.py
+│  ├─ exceptions.py
 │  ├─ llm_clients
+│  │  ├─ anthropic_clients.py
 │  │  ├─ config.py
-│  │  ├─ messages.py
+│  │  ├─ exceptions.py
+│  │  ├─ llm_base.py
 │  │  ├─ openai_clients.py
-│  │  ├─ openai_clients_base.py
+│  │  ├─ Templete.py
 │  │  ├─ __init__.py
+│  │  └─ __pycache__
+│  ├─ logger
+│  │  ├─ base.py
 │  │  └─ __pycache__
 │  ├─ main.py
 │  ├─ models.py
 │  ├─ news
 │  │  ├─ config.py
+│  │  ├─ exceptions.py
 │  │  ├─ router.py
 │  │  ├─ schemas.py
 │  │  ├─ services.py
 │  │  └─ __pycache__
 │  ├─ prices
 │  │  ├─ constants.py
+│  │  ├─ exceptions.py
 │  │  ├─ router.py
 │  │  └─ __pycache__
-│  ├─ README.md
 │  ├─ users
 │  │  ├─ constants.py
+│  │  ├─ exceptions.py
 │  │  ├─ router.py
 │  │  └─ __pycache__
 │  └─ __pycache__
@@ -66,6 +82,5 @@ backend
 │  ├─ __init__.py
 │  └─ __pycache__
 └─ __pycache__
-
 
 ```
