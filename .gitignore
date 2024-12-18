@@ -6,3 +6,7 @@ backend/coverage.xml
 backend/.coverage
 backend/src/.env
 
+backend/app_rotating.log
+backend/app.log
+
+

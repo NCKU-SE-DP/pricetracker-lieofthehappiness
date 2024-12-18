@@ -1,14 +1,16 @@
 import abc
+import logging
+from sentry_sdk import capture_exception
 from tldextract import tldextract
 from sqlalchemy.orm import Session
 from .exceptions import DomainMismatchException
 from pydantic import BaseModel, Field, AnyHttpUrl
-
+from ..logger.base import logger
 
 class Headline(BaseModel):
     title: str = Field(
         default=...,
-        example="Title of the article",
+        example="Title of the article", 
         description="The title of the article"
     )
     url: AnyHttpUrl | str = Field(
@@ -102,11 +104,15 @@ class NewsCrawlerBase(metaclass=abc.ABCMeta):
         :raises DomainMismatchException: If the URL does not belong to the allowed domain or its child URLs.
         :raises ParseException: If parsing the news content fails.
         """
-
-        if not self._is_valid_url(url):
-            raise DomainMismatchException(url)
-        return self.parse(url)
-
+        try:
+            if not self._is_valid_url(url):
+                logger.error(f"Invalid URL domain: {url}")
+                raise DomainMismatchException(url)
+            return self.parse(url)
+        except Exception as e:
+            logger.error(f"Error validating and parsing URL {url}: {str(e)}")
+            capture_exception(e)
+            raise
 
     @staticmethod
     @abc.abstractmethod
@@ -134,7 +140,11 @@ class NewsCrawlerBase(metaclass=abc.ABCMeta):
         :param url: The URL to be checked for validity.
         :return: True if the URL is valid, False otherwise.
         """
-        main_domain = tldextract.extract(self.news_website_url).registered_domain
-        url_domain = tldextract.extract(url).registered_domain
-
-        return url_domain == main_domain
+        try:
+            main_domain = tldextract.extract(self.news_website_url).registered_domain
+            url_domain = tldextract.extract(url).registered_domain
+            return url_domain == main_domain
+        except Exception as e:
+            logger.error(f"Error validating URL {url}: {str(e)}")
+            capture_exception(e)
+            raise

@@ -11,24 +11,11 @@ from fastapi import APIRouter
 from ..crawler.udn_crawler import UDNCrawler
 from ..crawler.exceptions import ParseException
 from ..llm_clients.exceptions import TextGenerationError
+from .exceptions import NewsSearchException, NewsSummaryException, UpvoteException
+from ..logger.base import logger
+from sentry_sdk import capture_exception
+from .exceptions import NewsSummaryException, UpvoteException
 
-class NewsSearchException(Exception):
-    """搜尋新聞時發生錯誤"""
-    def __init__(self, message: str = "搜尋新聞失敗"):
-        self.message = message
-        super().__init__(self.message)
-
-class NewsSummaryException(Exception):
-    """生成新聞摘要時發生錯誤"""
-    def __init__(self, message: str = "生成新聞摘要失敗"):
-        self.message = message
-        super().__init__(self.message)
-
-class UpvoteException(Exception):
-    """點讚操作失敗"""
-    def __init__(self, message: str = "點讚操作失敗"):
-        self.message = message
-        super().__init__(self.message)
 
 udn_crawler=UDNCrawler()
 llm_client=openai_client
@@ -55,6 +42,8 @@ def read_news(db=Depends(session_opener)):
             )
         return result
     except Exception as e:
+        logger.error(f"Failed to get news: {str(e)}")
+        capture_exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/user_news")
@@ -82,6 +71,8 @@ def read_user_news(
             )
         return result
     except Exception as e:
+        logger.error(f"Failed to get user news: {str(e)}")
+        capture_exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 _id_counter = itertools.count(start=1000000)
@@ -110,12 +101,17 @@ async def search_news(request: PromptRequest):
 
                 news_list.append(detailed_news)
             except ParseException as error:
-                print(f"解析新聞失敗: {error}")
+                logger.error(f"Failed to parse news: {str(error)}")
+                capture_exception(error)
                 continue
         return sorted(news_list, key=lambda x: x["time"], reverse=True)
     except TextGenerationError as e:
-        raise NewsSearchException(f"關鍵字提取失敗: {str(e)}")
+        logger.error(f"Failed to extract keywords: {str(e)}")
+        capture_exception(e)
+        raise NewsSearchException(f"Failed to extract keywords: {str(e)}")
     except Exception as e:
+        logger.error(f"Failed to search news: {str(e)}")
+        capture_exception(e)
         raise NewsSearchException(str(e))
 
 @router.post("/news_summary")
@@ -137,10 +133,16 @@ async def news_summary(
             response["reason"] = result["原因"]
         return response
     except TextGenerationError as e:
-        raise NewsSummaryException(f"生成摘要失敗: {str(e)}")
-    except json.JSONDecodeError:
-        raise NewsSummaryException("摘要格式錯誤")
+        logger.error(f"Failed to generate summary: {str(e)}")
+        capture_exception(e)
+        raise NewsSummaryException(f"Failed to generate summary: {str(e)}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid summary format: {str(e)}")
+        capture_exception(e)
+        raise NewsSummaryException("Invalid summary format")
     except Exception as e:
+        logger.error(f"Error occurred during summary generation: {str(e)}")
+        capture_exception(e)
         raise NewsSummaryException(str(e))
 
 @router.post("/{article_id}/upvote")
@@ -159,6 +161,8 @@ def upvote_article(
         message = toggle_upvote(article_id, usertoken.id, db)
         return {"message": message}
     except Exception as e:
+        logger.error(f"Failed to upvote: {str(e)}")
+        capture_exception(e)
         raise UpvoteException(str(e))
 
 @router.post("/news_summary_custom_model")
@@ -176,12 +180,18 @@ async def summarize_news_with_custome_model(payload: NewsSumaryCustomModelSchema
             response["reason"] = result["原因"]
         return response
     except TextGenerationError as e:
-        raise NewsSummaryException(f"生成摘要失敗: {str(e)}")
-    except json.JSONDecodeError:
-        raise NewsSummaryException("摘要格式錯誤")
+        logger.error(f"Custom model failed to generate summary: {str(e)}")
+        capture_exception(e)
+        raise NewsSummaryException(f"Failed to generate summary: {str(e)}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Custom model invalid summary format: {str(e)}")
+        capture_exception(e)
+        raise NewsSummaryException("Invalid summary format")
     except Exception as e:
+        logger.error(f"Error occurred during custom model summary generation: {str(e)}")
+        capture_exception(e)
         raise NewsSummaryException(str(e))
 
 @router.get("/sentry-debug")
 async def trigger_error():
-    division_by_zero = 1 / 0  
+    division_by_zero = 1 / 0

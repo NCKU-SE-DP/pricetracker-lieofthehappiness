@@ -2,6 +2,9 @@ from .Templete import LLMClientTemplate
 from .config import GPT_MODEL
 import aisuite as ai
 from .exceptions import ClientException
+from sentry_sdk import capture_exception
+from ..logger.base import logger
+
 class OpenAIClient(LLMClientTemplate):
     def __init__(self, api_key: str):
         super().__init__(api_key)
@@ -10,5 +13,8 @@ class OpenAIClient(LLMClientTemplate):
         try:
             self.client = ai.Client({"openai": {"api_key": self.api_key}})
             self.model = GPT_MODEL
+            logger.info("OpenAI client initialized successfully")
         except Exception as e:
+            logger.error(f"Failed to initialize OpenAI client: {str(e)}")
+            capture_exception(e)
             raise ClientException(f"Failed to initialize client: {str(e)}")

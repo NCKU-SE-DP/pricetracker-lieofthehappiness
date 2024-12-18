@@ -1,4 +1,4 @@
-from .crawler_base import News
+
 class DomainMismatchException(Exception):
     """Exception raised for URLs whose domain does not match the news website's domain."""
 
@@ -36,7 +36,7 @@ class ParseException(Exception):
 
 class SaveException(Exception):
     """Exception raised when saving news content fails"""
-    def __init__(self, news: 'News', message: str = "Failed to save news content"):
+    def __init__(self, news, message: str = "Failed to save news content"):
         self.news = news
         self.message = message
         super().__init__(self.message)

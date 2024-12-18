@@ -10,6 +10,8 @@ from .prices.router import router as prices_router
 from .news.router import router as news_router
 from .users.router import router as users_router
 from .exceptions import SchedulerStartupError, SchedulerShutdownError
+from .logger.base import logger
+from sentry_sdk import capture_exception, capture_message
 
 sentry_sdk.init(
     dsn=App.DSN,
@@ -50,6 +52,8 @@ def start_scheduler():
         Scheduler.add_job(get_new, "interval", minutes=App.GET_NEW_INTERVAL_MINUTE)
         Scheduler.start()
     except Exception as e:
+        logger.error(f"Failed to start scheduler: {str(e)}")
+        capture_exception(e)
         raise SchedulerStartupError(f"Failed to start scheduler: {str(e)}")
 
 @app.on_event("shutdown")
@@ -57,4 +61,6 @@ def shutdown_scheduler():
     try:
         Scheduler.shutdown()
     except Exception as e:
+        logger.error(f"Failed to shutdown scheduler: {str(e)}")
+        capture_exception(e)
         raise SchedulerShutdownError(f"Failed to shutdown scheduler: {str(e)}")

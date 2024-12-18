@@ -3,6 +3,8 @@ import requests
 from .constants import PRICES_URL
 from fastapi import APIRouter
 from .exceptions import PriceRetrievalException
+from ..logger.base import logger
+from sentry_sdk import capture_exception
 
 router = APIRouter(
     prefix="/prices",
@@ -26,4 +28,6 @@ def get_necessities_prices(
         )
         return response.json()
     except Exception as e:
+        logger.error(f"Failed to retrieve price information: {str(e)}")
+        capture_exception(e)
         raise PriceRetrievalException(f"Failed to retrieve price information: {str(e)}")

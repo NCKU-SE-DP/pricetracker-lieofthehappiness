@@ -32,7 +32,8 @@ UDNCrawler Methods:
     _commit_changes(db: Session): Commits the changes to the database with error handling.
 """
 
-
+import logging
+from sentry_sdk import capture_exception
 import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
@@ -40,6 +41,7 @@ from urllib.parse import quote
 from .crawler_base import NewsCrawlerBase, Headline, News, NewsWithSummary
 from requests import Response
 from .exceptions import InvalidSearchTermException, InvalidPageException, ParseException, SaveException
+from ..logger.base import logger
 
 class Page:
     def __init__(self, page: int, search_term: str, channel_id: str) -> None:
@@ -74,18 +76,23 @@ class UDNCrawler(NewsCrawlerBase):
         :rtype: list[Headline]
         """
         if not search_term:
+            logger.error(f"Invalid search term: {search_term}")
             raise InvalidSearchTermException(search_term)
+        logger.info(f"Starting up crawler with search term: {search_term}")
         return self.get_headline(search_term, page=(1, 10))
 
     def get_headline(
         self, search_term: str, page: int | tuple[int, int]
     ) -> list[Headline]:
         if not search_term:
+            logger.error(f"Invalid search term: {search_term}")
             raise InvalidSearchTermException(search_term)
             
         if isinstance(page, tuple) and (page[0] < 0 or page[1] < page[0]):
+            logger.error(f"Invalid page range: {page}")
             raise InvalidPageException(page)
         elif isinstance(page, int) and page < 0:
+            logger.error(f"Invalid page number: {page}")
             raise InvalidPageException(page)
 
         # Calculate the range of pages to fetch news from.
@@ -94,6 +101,7 @@ class UDNCrawler(NewsCrawlerBase):
         page_range = range(*page) if isinstance(page, tuple) else [page]
         headlines = []
         for page_number in page_range:
+            logger.info(f"Fetching headlines for page {page_number}")
             headlines.extend(self._fetch_news_headline(page_number, search_term))
         return headlines 
 
@@ -111,6 +119,8 @@ class UDNCrawler(NewsCrawlerBase):
             response.raise_for_status()
             return response
         except requests.RequestException as e:
+            logger.error(f"Request failed for URL {url}: {str(e)}")
+            capture_exception(e)
             raise ParseException(url=url, message=str(e))
 
     @staticmethod
@@ -121,8 +131,11 @@ class UDNCrawler(NewsCrawlerBase):
             for news in news_list:
                 headline=Headline(title=news["title"], url=news["titleLink"])
                 list_of_headline.append(headline)
+            logger.info(f"Successfully parsed {len(list_of_headline)} headlines")
             return list_of_headline
         except Exception as e:
+            logger.error(f"Failed to parse headlines from {response.url}: {str(e)}")
+            capture_exception(e)
             raise ParseException(url=response.url, message=str(e))
 
     def parse(self, url: str) -> News:
@@ -130,8 +143,11 @@ class UDNCrawler(NewsCrawlerBase):
             response=self._perform_request(url=url)
             soup=BeautifulSoup(response.text, "html.parser")
             news=self._extract_news(soup, url)
+            logger.info(f"Successfully parsed news from {url}")
             return news
         except Exception as e:
+            logger.error(f"Failed to parse news from {url}: {str(e)}")
+            capture_exception(e)
             raise ParseException(url=url, message=str(e))
 
     @staticmethod
@@ -154,19 +170,27 @@ class UDNCrawler(NewsCrawlerBase):
             )
             return news
         except Exception as e:
+            logger.error(f"Failed to extract news content from {url}: {str(e)}")
+            capture_exception(e)
             raise ParseException(url=url, message=str(e))
 
     def save(self, news_data: NewsWithSummary, db: Session):
         try:
             db.add(news_data)
             self._commit_changes(db)
+            logger.info(f"Successfully saved news: {news_data.title}")
         except Exception as e:
+            logger.error(f"Failed to save news {news_data.title}: {str(e)}")
+            capture_exception(e)
             raise SaveException(news=news_data, message=str(e))
 
     @staticmethod
     def _commit_changes(db: Session):
         try:
             db.commit()
+            logger.info("Successfully committed changes to database")
         except Exception as e:
             db.rollback()
+            logger.error(f"Failed to commit changes to database: {str(e)}")
+            capture_exception(e)
             raise SaveException(news=None, message=str(e))

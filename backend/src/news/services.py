@@ -9,10 +9,14 @@ from ..crawler.crawler_base import NewsCrawlerBase
 import requests
 from ..llm_clients.openai_clients import OpenAIClient
 from ..llm_clients.anthropic_clients import AnthropicClient
+from ..logger.base import logger
+from sentry_sdk import capture_exception
+
 udn_crawler = UDNCrawler()
 openai_client = OpenAIClient(api_key= OPENAI_API_KEY)
 anthropic_client = AnthropicClient(api_key=ANTHROPIC_KEY)
 from .exceptions import NewsAddException, NewsRetrievalException, UpvoteOperationException, NewsServiceException
+
 def add_new(news_data: NewsWithSummary):
     """
     add new to db
@@ -24,6 +28,8 @@ def add_new(news_data: NewsWithSummary):
         udn_crawler.save(news_data, session)
         session.close()
     except Exception as e:
+        logger.error(f"Failed to add news: {str(e)}")
+        capture_exception(e)
         raise NewsAddException(f"Failed to add news: {str(e)}")
 
 def get_new_info(search_term, is_initial=False):
@@ -39,6 +45,8 @@ def get_new_info(search_term, is_initial=False):
         else:
             return udn_crawler.get_headline(search_term,1) 
     except Exception as e:
+        logger.error(f"Failed to get news info: {str(e)}")
+        capture_exception(e)
         raise NewsRetrievalException(f"Failed to get news info: {str(e)}")
 
 def get_new(is_initial=False):
@@ -67,6 +75,8 @@ def get_new(is_initial=False):
                 )
                 add_new(detailed_news)
     except Exception as e:
+        logger.error(f"Failed to process news data: {str(e)}")
+        capture_exception(e)
         raise NewsRetrievalException(f"Failed to process news data: {str(e)}")
 
 def get_article_upvote_details(article_id, userid, db):
@@ -92,6 +102,8 @@ def get_article_upvote_details(article_id, userid, db):
             )
         return total_upvotes, voted
     except Exception as e:
+        logger.error(f"Failed to get upvote details: {str(e)}")
+        capture_exception(e)
         raise UpvoteOperationException(f"Failed to get upvote details: {str(e)}")
 
 def toggle_upvote(articlesid, userid, db):
@@ -125,10 +137,14 @@ def toggle_upvote(articlesid, userid, db):
             db.commit()
             return "Article upvoted"
     except Exception as e:
+        logger.error(f"Failed to perform upvote operation: {str(e)}")
+        capture_exception(e)
         raise UpvoteOperationException(f"Failed to perform upvote operation: {str(e)}")
     
 def news_exists(article_id, db: Session):
     try:
         return db.query(NewsArticle).filter_by(id=article_id).first() is not None
     except Exception as e:
+        logger.error(f"Failed to check if news exists: {str(e)}")
+        capture_exception(e)
         raise NewsServiceException(f"Failed to check if news exists: {str(e)}")
