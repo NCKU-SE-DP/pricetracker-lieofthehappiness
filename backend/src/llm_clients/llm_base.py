@@ -38,37 +38,17 @@ class LLMClientBase(metaclass=abc.ABCMeta):
         :param user_content: 
         :return: 
         """
-        try:
-            return NotImplemented
-        except Exception as e:
-            logger.error(f"Error in text generation: {str(e)}")
-            capture_exception(e)
-            raise
+        return NotImplemented
 
     @abc.abstractmethod
     def extract_search_keywords(self, news_expectation: str) -> str | None:
-        try:
-            raise NotImplementedError
-        except Exception as e:
-            logger.error(f"Error in keyword extraction: {str(e)}")
-            capture_exception(e)
-            raise
+        raise NotImplementedError
 
 
     @abc.abstractmethod
     def evaluate_relevance(self, title: str) ->str:
-        try:
-            raise NotImplementedError
-        except Exception as e:
-            logger.error(f"Error in relevance evaluation: {str(e)}")
-            capture_exception(e)
-            raise
+        raise NotImplementedError
     
     @abc.abstractmethod
     def generate_summary(self, content) ->str:
-        try:
-            raise NotImplementedError
-        except Exception as e:
-            logger.error(f"Error in summary generation: {str(e)}")
-            capture_exception(e)
-            raise
+        raise NotImplementedError
