@@ -9,6 +9,7 @@ from .news.services import get_new
 from .prices.router import router as prices_router
 from .news.router import router as news_router
 from .users.router import router as users_router
+from .exceptions import SchedulerStartupError, SchedulerShutdownError
 
 sentry_sdk.init(
     dsn=App.DSN,
@@ -40,14 +41,20 @@ app.add_middleware(
 
 @app.on_event("startup")
 def start_scheduler():
-    db = SessionLocal()
-    if db.query(NewsArticle).count() == 0:
-        # should change into simple factory pattern
-        get_new()
-    db.close()
-    Scheduler.add_job(get_new, "interval", minutes=App.GET_NEW_INTERVAL_MINUTE)
-    Scheduler.start()
+    try:
+        db = SessionLocal()
+        if db.query(NewsArticle).count() == 0:
+            # should change into simple factory pattern
+            get_new()
+        db.close()
+        Scheduler.add_job(get_new, "interval", minutes=App.GET_NEW_INTERVAL_MINUTE)
+        Scheduler.start()
+    except Exception as e:
+        raise SchedulerStartupError(f"Failed to start scheduler: {str(e)}")
 
 @app.on_event("shutdown")
 def shutdown_scheduler():
-    Scheduler.shutdown()
+    try:
+        Scheduler.shutdown()
+    except Exception as e:
+        raise SchedulerShutdownError(f"Failed to shutdown scheduler: {str(e)}")

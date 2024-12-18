@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session
 from urllib.parse import quote
 from .crawler_base import NewsCrawlerBase, Headline, News, NewsWithSummary
 from requests import Response
+from .exceptions import InvalidSearchTermException, InvalidPageException, ParseException, SaveException
 
 class Page:
     def __init__(self, page: int, search_term: str, channel_id: str) -> None:
@@ -72,11 +73,20 @@ class UDNCrawler(NewsCrawlerBase):
         :return: A list of Headline namedtuples containing the title and URL of news articles.
         :rtype: list[Headline]
         """
+        if not search_term:
+            raise InvalidSearchTermException(search_term)
         return self.get_headline(search_term, page=(1, 10))
 
     def get_headline(
         self, search_term: str, page: int | tuple[int, int]
     ) -> list[Headline]:
+        if not search_term:
+            raise InvalidSearchTermException(search_term)
+            
+        if isinstance(page, tuple) and (page[0] < 0 or page[1] < page[0]):
+            raise InvalidPageException(page)
+        elif isinstance(page, int) and page < 0:
+            raise InvalidPageException(page)
 
         # Calculate the range of pages to fetch news from.
         # If 'page' is a tuple, unpack it and create a range representing those pages (inclusive).
@@ -96,46 +106,67 @@ class UDNCrawler(NewsCrawlerBase):
         return pageinfo.to_dict()
          
     def _perform_request(self, url: str | None = None, params: dict | None = None) -> Response:
-        return requests.get(url, params=params)
+        try:
+            response = requests.get(url, params=params, timeout=self.timeout)
+            response.raise_for_status()
+            return response
+        except requests.RequestException as e:
+            raise ParseException(url=url, message=str(e))
 
     @staticmethod
     def _parse_headlines(response: Response) -> list[Headline]:
         list_of_headline=[]
-        response.raise_for_status()
-        news_list=response.json().get("lists", [])
-        for news in news_list:
-            headline=Headline(title=news["title"], url=news["titleLink"])
-            list_of_headline.append(headline)
-        return list_of_headline       
-
+        try:
+            news_list=response.json().get("lists", [])
+            for news in news_list:
+                headline=Headline(title=news["title"], url=news["titleLink"])
+                list_of_headline.append(headline)
+            return list_of_headline
+        except Exception as e:
+            raise ParseException(url=response.url, message=str(e))
 
     def parse(self, url: str) -> News:
-        response=self._perform_request(url=url)
-        soup=BeautifulSoup(response.text, "html.parser")
-        news=self._extract_news(soup, url)
-        return news
+        try:
+            response=self._perform_request(url=url)
+            soup=BeautifulSoup(response.text, "html.parser")
+            news=self._extract_news(soup, url)
+            return news
+        except Exception as e:
+            raise ParseException(url=url, message=str(e))
+
     @staticmethod
     def _extract_news(soup: BeautifulSoup, url: str) -> News:
-        title = soup.find("h1", class_="article-content__title").text
-        time = soup.find("time", class_="article-content__time").text
-        content_section = soup.find("section", class_="article-content__editor")
-        paragraphs = [
-            paragraphinfo.text
-            for paragraphinfo in content_section.find_all("p")
-            if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
-        ]
-        content = " ".join(paragraphs)
-        news=News(
-            title=title,
-            url=url,
-            time=time,
-            content=content
-        )
-        return news
+        try:
+            title = soup.find("h1", class_="article-content__title").text
+            time = soup.find("time", class_="article-content__time").text
+            content_section = soup.find("section", class_="article-content__editor")
+            paragraphs = [
+                paragraphinfo.text
+                for paragraphinfo in content_section.find_all("p")
+                if paragraphinfo.text.strip() != "" and "▪" not in paragraphinfo.text
+            ]
+            content = " ".join(paragraphs)
+            news=News(
+                title=title,
+                url=url,
+                time=time,
+                content=content
+            )
+            return news
+        except Exception as e:
+            raise ParseException(url=url, message=str(e))
+
     def save(self, news_data: NewsWithSummary, db: Session):
-        db.add(news_data)
-        self._commit_changes(db)
+        try:
+            db.add(news_data)
+            self._commit_changes(db)
+        except Exception as e:
+            raise SaveException(news=news_data, message=str(e))
 
     @staticmethod
     def _commit_changes(db: Session):
-        db.commit()
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            raise SaveException(news=None, message=str(e))

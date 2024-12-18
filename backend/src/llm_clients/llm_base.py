@@ -1,19 +1,25 @@
 import abc
 from pydantic import BaseModel, Field
 import aisuite as ai
+from .exceptions import MessageValidationError, MessageFormatError
 
 class MessagePassingInterface(BaseModel):
     system_content: str = Field(...)
     user_content: str = Field(...)
 
-
     @property
     def to_dict(self) -> list[dict[str, str]]:
-        dicts = [
-            {"role": "system", "content": f"{self.system_content}"},
-            {"role": "user", "content": f"{self.user_content}"}
-        ]
-        return dicts
+        try:
+            if not self.system_content or not self.user_content:
+                raise MessageValidationError("System content or user content cannot be empty")
+            
+            dicts = [
+                {"role": "system", "content": f"{self.system_content}"},
+                {"role": "user", "content": f"{self.user_content}"}
+            ]
+            return dicts
+        except Exception as e:
+            raise MessageFormatError(f"Error occurred while converting message format: {str(e)}")
 
 
 

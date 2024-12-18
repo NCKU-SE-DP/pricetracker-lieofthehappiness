@@ -67,6 +67,8 @@ class NewsCrawlerBase(metaclass=abc.ABCMeta):
         # :param offset: The number of headlines to skip from the beginning of the list.
         # :param limit: The maximum number of headlines to return.
         :return: A list of Headline namedtuple  s, each containing a title and a URL.
+        :raises InvalidSearchTermException: If the search term is empty or invalid.
+        :raises InvalidPageException: If the page number or range is invalid.
         """
         return NotImplemented
 
@@ -81,6 +83,7 @@ class NewsCrawlerBase(metaclass=abc.ABCMeta):
 
         :param url: The URL of the news article to be fetched and parsed.
         :return: A News namedtuple containing the title, URL, time, and content of the news article.
+        :raises ParseException: If parsing the news content fails.
         """
 
         return NotImplemented
@@ -97,6 +100,7 @@ class NewsCrawlerBase(metaclass=abc.ABCMeta):
         :param url: The URL of the news article to be validated and parsed.
         :return: A `News` object containing the parsed news details (title, URL, time, and content).
         :raises DomainMismatchException: If the URL does not belong to the allowed domain or its child URLs.
+        :raises ParseException: If parsing the news content fails.
         """
 
         if not self._is_valid_url(url):
@@ -116,6 +120,7 @@ class NewsCrawlerBase(metaclass=abc.ABCMeta):
 
         :param news: A News namedtuple containing the title, URL, time, and content of the news article.
         :param db: An instance of the database session to use for saving the news content.
+        :raises SaveException: If saving the news content fails.
         """
         return NotImplemented
 
