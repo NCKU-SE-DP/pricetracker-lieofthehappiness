@@ -9,17 +9,28 @@ from .news.services import get_new
 from .prices.router import router as prices_router
 from .news.router import router as news_router
 from .users.router import router as users_router
+from .exceptions import SchedulerStartupError, SchedulerShutdownError
+from .logger.base import logger
+from sentry_sdk import capture_exception, capture_message
 
+sentry_sdk.init(
+    dsn=App.DSN,
+    # Set traces_sample_rate to 1.0 to capture 100%
+    # of transactions for tracing.
+    traces_sample_rate=App.TRACES_SAMPLE_RATE,
+    _experiments={
+        # Set continuous_profiling_auto_start to True
+        # to automatically start the profiler on when
+        # possible.
+        "continuous_profiling_auto_start": True,
+    },
+)
 
 app = FastAPI()
 app.include_router(news_router, prefix=App.FASTAPI_PREFIX)
 app.include_router(users_router, prefix=App.FASTAPI_PREFIX)
 app.include_router(prices_router, prefix=App.FASTAPI_PREFIX)
-sentry_sdk.init(
-    dsn=App.DSN,
-    traces_sample_rate=App.TRACES_SAMPLE_RATE,
-    profiles_sample_rate=App.PROFILES_SAMPLE_RATE,
-)
+
 Scheduler=BackgroundScheduler()
 
 app.add_middleware(
@@ -32,14 +43,24 @@ app.add_middleware(
 
 @app.on_event("startup")
 def start_scheduler():
-    db = SessionLocal()
-    if db.query(NewsArticle).count() == 0:
-        # should change into simple factory pattern
-        get_new()
-    db.close()
-    Scheduler.add_job(get_new, "interval", minutes=App.GET_NEW_INTERVAL_MINUTE)
-    Scheduler.start()
+    try:
+        db = SessionLocal()
+        if db.query(NewsArticle).count() == 0:
+            # should change into simple factory pattern
+            get_new()
+        db.close()
+        Scheduler.add_job(get_new, "interval", minutes=App.GET_NEW_INTERVAL_MINUTE)
+        Scheduler.start()
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {str(e)}")
+        capture_exception(e)
+        raise SchedulerStartupError(f"Failed to start scheduler: {str(e)}")
 
 @app.on_event("shutdown")
 def shutdown_scheduler():
-    Scheduler.shutdown()
+    try:
+        Scheduler.shutdown()
+    except Exception as e:
+        logger.error(f"Failed to shutdown scheduler: {str(e)}")
+        capture_exception(e)
+        raise SchedulerShutdownError(f"Failed to shutdown scheduler: {str(e)}")
