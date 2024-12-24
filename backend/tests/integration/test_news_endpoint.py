@@ -123,7 +123,7 @@ def mock_anthropic(mocker, return_content):
 def test_search_news(mocker):
     mock_openai(mocker, "keywords")
 
-    mock_get_new_info = mocker.patch("src.news.router.get_new_info", return_value=[
+    mock_get_new_info = mocker.patch("src.news.services.get_new_info", return_value=[
          Headline(title="Test Title", url="https://udn.com/api/more/testing/news1")
     ])
 
@@ -168,7 +168,7 @@ def test_summarize_news_with_custome_model(mocker, test_token):
     # Test OpenAI model
     openai_response = json.dumps({"影響": "test impact_openai", "原因": "test reason_openai"})
     mock_openai(mocker, openai_response)
-    request_body = NewsSumaryCustomModelSchema(content="Test news content", ai_model="openai")
+    request_body = NewsSumaryCustomModelSchema(content="Test news content", llm_model="openai")
     response = client.post("/api/v1/news/news_summary_custom_model", json=request_body.dict(), headers=headers)
     assert response.status_code == 200
     json_response = response.json()
@@ -178,7 +178,7 @@ def test_summarize_news_with_custome_model(mocker, test_token):
     # Test Anthropic model 
     anthropic_response = json.dumps({"影響": "test impact_anthropic", "原因": "test reason_anthropic"})
     mock_anthropic(mocker, anthropic_response)
-    request_body = NewsSumaryCustomModelSchema(content="Test news content", ai_model="anthropic")
+    request_body = NewsSumaryCustomModelSchema(content="Test news content", llm_model="anthropic")
     response = client.post("/api/v1/news/news_summary_custom_model", json=request_body.dict(), headers=headers)
     assert response.status_code == 200
     json_response = response.json()
