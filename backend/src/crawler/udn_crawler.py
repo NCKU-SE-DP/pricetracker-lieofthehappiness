@@ -38,7 +38,8 @@ import requests
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 from urllib.parse import quote
-from .crawler_base import NewsCrawlerBase, Headline, News, NewsWithSummary
+from .crawler_base import NewsCrawlerBase, Headline, News
+from ..models import NewsArticle
 from requests import Response
 from .exceptions import InvalidSearchTermException, InvalidPageException, ParseException, SaveException
 from ..logger.base import logger
@@ -174,7 +175,7 @@ class UDNCrawler(NewsCrawlerBase):
             capture_exception(e)
             raise ParseException(url=url, message=str(e))
 
-    def save(self, news_data: NewsWithSummary, db: Session):
+    def save(self, news_data: NewsArticle, db: Session):
         try:
             db.add(news_data)
             self._commit_changes(db)
