@@ -1,32 +1,6 @@
 import abc
-import logging
-from sentry_sdk import capture_exception
-from pydantic import BaseModel, Field
 import aisuite as ai
-from .exceptions import MessageValidationError, MessageFormatError
 from ..logger.base import logger
-
-class MessagePassingInterface(BaseModel):
-    system_content: str = Field(...)
-    user_content: str = Field(...)
-
-    @property
-    def to_dict(self) -> list[dict[str, str]]:
-        try:
-            if not self.system_content or not self.user_content:
-                raise MessageValidationError("System content or user content cannot be empty")
-            
-            dicts = [
-                {"role": "system", "content": f"{self.system_content}"},
-                {"role": "user", "content": f"{self.user_content}"}
-            ]
-            return dicts
-        except Exception as e:
-            logger.error(f"Error in message format conversion: {str(e)}")
-            capture_exception(e)
-            raise MessageFormatError(f"Error occurred while converting message format: {str(e)}")
-
-
 
 class LLMClientBase(metaclass=abc.ABCMeta):
     client: ai.Client = ...
