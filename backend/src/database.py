@@ -16,6 +16,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=Database.TOKENURl)
 
 def session_opener():
+    session=None
     try:
         session = Session(bind=engine)
         yield session
@@ -24,4 +25,5 @@ def session_opener():
         capture_exception(e)
         raise DatabaseConnectionError(f"Database connection error: {str(e)}")
     finally:
-        session.close()
+        if session: 
+            session.close()

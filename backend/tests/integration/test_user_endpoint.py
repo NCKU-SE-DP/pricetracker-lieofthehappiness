@@ -7,7 +7,7 @@ from src.database import Base, session_opener
 from src.models import User
 from jose import jwt
 from src.auth.config import pwd_context
-
+from src.users.exceptions import UserException, UserAuthenticationError, UserRegistrationError
 SECRET_KEY = "1892dhianiandowqd0n"
 ALGORITHM = "HS256"
 # SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -85,3 +85,14 @@ def test_read_users_me(test_token):
     assert response.status_code == 200
     data = response.json()
     assert data["username"] == "testuser"
+def test_user_exception():
+    with pytest.raises(UserException, match="Test UserException"):
+        raise UserException("Test UserException")
+
+def test_user_authentication_error():
+    with pytest.raises(UserAuthenticationError, match="Test UserAuthenticationError"):
+        raise UserAuthenticationError("Test UserAuthenticationError")
+
+def test_user_registration_error():
+    with pytest.raises(UserRegistrationError, match="Test UserRegistrationError"):
+        raise UserRegistrationError("Test UserRegistrationError")

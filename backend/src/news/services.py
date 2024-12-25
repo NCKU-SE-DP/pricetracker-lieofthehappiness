@@ -2,14 +2,10 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert, select
 import itertools
-import json
-import requests
-from ..auth.services import authenticate_user_token
-from ..database import session_opener
 from ..models import user_news_table, NewsArticle
 from ..logger.base import logger
 from ..crawler.udn_crawler import UDNCrawler
-from ..crawler.crawler_base import NewsWithSummary, NewsCrawlerBase
+from ..crawler.crawler_base import NewsWithSummary
 from ..crawler.exceptions import ParseException
 from ..llm_clients.openai_clients import OpenAIClient
 from ..llm_clients.anthropic_clients import AnthropicClient
@@ -17,7 +13,6 @@ from ..llm_clients.exceptions import TextGenerationError
 from .config import OPENAI_API_KEY, ANTHROPIC_KEY
 from .exceptions import (
     NewsAddException,
-    NewsRetrievalException,
     NewsSearchException,
     NewsServiceException,
     UpvoteException,
@@ -26,6 +21,7 @@ from .exceptions import (
 )
 from .router import PromptRequest
 from sentry_sdk import capture_exception
+import json
 
 # 初始化客戶端
 udn_crawler = UDNCrawler()
@@ -95,15 +91,10 @@ def get_new_info(search_term, is_initial=False):
     :param is_initial:是否獲取多個頁面的新聞資料
     :return:包含新聞資料的列表
     """
-    try:
-        if is_initial:  
-            return udn_crawler.get_headline(search_term,page=(1,10))    
-        else:
-            return udn_crawler.get_headline(search_term,1) 
-    except Exception as e:
-        logger.error(f"Failed to get news info: {str(e)}")
-        capture_exception(e)
-        raise NewsRetrievalException(f"Failed to get news info: {str(e)}")
+    if is_initial:  
+        return udn_crawler.get_headline(search_term,page=(1,10))    
+    else:
+        return udn_crawler.get_headline(search_term,1) 
 
 def get_new(is_initial=False):
     """
@@ -111,29 +102,26 @@ def get_new(is_initial=False):
     :param is_initial:是否需要抓取多頁的新聞
     :return:
     """
-    try:
-        news_data = get_new_info("price", is_initial=is_initial)
-        for news in news_data:
-            title = news.title
-            url=news.url
-            relevance = openai_client.evaluate_relevance(title)
-            if relevance == "high":
-                news_from_crawler=udn_crawler.parse(url)
-                result = openai_client.generate_summary(news_from_crawler.content)
-                result = json.loads(result)
-                detailed_news=NewsArticle(
-                    title=title,
-                    url=url,
-                    time=news_from_crawler.time,
-                    content=news_from_crawler.content,
-                    summary=result["影響"],
-                    reason=result["原因"]
-                )
-                add_new(detailed_news)
-    except Exception as e:
-        logger.error(f"Failed to process news data: {str(e)}")
-        capture_exception(e)
-        raise NewsRetrievalException(f"Failed to process news data: {str(e)}")
+    
+    news_data = get_new_info("price", is_initial=is_initial)
+    for news in news_data:
+        title = news.title
+        url=news.url
+        relevance = openai_client.evaluate_relevance(title)
+        if relevance == "high":
+            news_from_crawler=udn_crawler.parse(url)
+            result = openai_client.generate_summary(news_from_crawler.content)
+            result = json.loads(result)
+            detailed_news=NewsArticle(
+                title=title,
+                url=url,
+                time=news_from_crawler.time,
+                content=news_from_crawler.content,
+                summary=result["影響"],
+                reason=result["原因"]
+            )
+            add_new(detailed_news)
+
 
 def get_article_upvote_details(article_id, userid, db):
     try:
