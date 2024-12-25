@@ -66,6 +66,8 @@ class LLMClientTemplate(LLMClientBase, ABC):
 
     def _llm_messages(self, system_content: str, user_content: str) -> list:
         try:
+            if system_content is None or user_content is None:
+                raise MessageFormatError("系統內容或使用者內容不能為空")
             messages = [
                 {"role": "system", "content": system_content},
                 {"role": "user", "content": user_content}
