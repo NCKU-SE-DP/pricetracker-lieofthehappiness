@@ -55,7 +55,7 @@ class LLMClientTemplate(LLMClientBase, ABC):
         try:
             completion = self.client.chat.completions.create(
                 model=self.model,
-                messages=self._llm_messages(system_content, user_content)
+                messages=self._generate_mpi_messages(system_content, user_content)
             )
             logger.info("Successfully generated text response")
             return completion.choices[0].message.content
@@ -64,7 +64,7 @@ class LLMClientTemplate(LLMClientBase, ABC):
             capture_exception(e)
             raise TextGenerationError(f"Failed to generate text: {str(e)}")
 
-    def _llm_messages(self, system_content: str, user_content: str) -> list:
+    def _generate_mpi_messages(self, system_content: str, user_content: str) -> list:
         try:
             if system_content is None or user_content is None:
                 raise MessageFormatError("系統內容或使用者內容不能為空")
