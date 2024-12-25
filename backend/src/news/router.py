@@ -75,7 +75,7 @@ def upvote_article(
     return services.upvote_article(article_id,db,usertoken)
 
 @router.post("/news_summary_custom_model")
-async def summarize_news_with_custome_model(payload: NewsSumaryCustomModelSchema, user_token= Depends(authenticate_user_token)):
+async def summarize_news_with_custom_model(payload: NewsSumaryCustomModelSchema, user_token= Depends(authenticate_user_token)):
     llm_client = None
     if payload.llm_model == "anthropic":
         llm_client = services.anthropic_client
