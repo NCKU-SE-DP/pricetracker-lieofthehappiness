@@ -77,10 +77,10 @@ class TestOpenAIClient(unittest.TestCase):
         except Exception as e:
             self.fail(f"測試失敗，錯誤訊息: {str(e)}")
 
-    # 測試 _llm_messages 方法在格式化訊息失敗時是否正確拋出 MessageFormatError
-    def test_llm_messages_format_error(self):
+    # 測試 _generate_mpi_messages 方法在格式化訊息失敗時是否正確拋出 MessageFormatError
+    def test_generate_mpi_messages_format_error(self):
         with self.assertRaises(MessageFormatError):
-            self.client._llm_messages(system_content=None, user_content=None)
+            self.client._generate_mpi_messages(system_content=None, user_content=None)
 
 
     def test_generate_text_error(self):
