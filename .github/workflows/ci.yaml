@@ -5,7 +5,7 @@ on:
     branches:
       - 'main'
       - 'develop'
-      - 'refactor/error_handling'
+      - 'refactor/overall'
   pull_request:
     branches:
       - 'main'
