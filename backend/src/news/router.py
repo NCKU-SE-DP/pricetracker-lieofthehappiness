@@ -1,24 +1,16 @@
-import itertools
-import requests
-import json
-from fastapi import Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from ..database import session_opener
 from ..auth.services import authenticate_user_token
-from ..models import NewsArticle
-from .services import get_article_upvote_details, get_new_info, toggle_upvote,openai_client, anthropic_client
-from .schemas import PromptRequest, NewsSumaryRequestSchema, NewsSumaryCustomModelSchema
-from fastapi import APIRouter
+from .schemas import PromptRequest, NewsSumaryRequestSchema
 from ..crawler.udn_crawler import UDNCrawler
-from ..crawler.exceptions import ParseException
-from ..llm_clients.exceptions import TextGenerationError
-from .exceptions import NewsSearchException, NewsSummaryException, UpvoteException
+from ..crawler.crawler_base import NewsCrawlerBase
+from . import services
+from .schemas import NewsSumaryCustomModelSchema
 from ..logger.base import logger
 from sentry_sdk import capture_exception
-from .exceptions import NewsSummaryException, UpvoteException
-
-
+from .exceptions import NewsSummaryException
 udn_crawler=UDNCrawler()
-llm_client=openai_client
+
 
 router = APIRouter(
     prefix="/news",
@@ -32,19 +24,7 @@ def read_news(db=Depends(session_opener)):
     :param db:
     :return:包含新聞文章及其點贊詳情的列表
     """
-    try:
-        news = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
-        result = []
-        for article in news:
-            upvotes, upvoted = get_article_upvote_details(article.id, None, db)
-            result.append(
-                {**article.__dict__, "upvotes": upvotes, "is_upvoted": upvoted}
-            )
-        return result
-    except Exception as e:
-        logger.error(f"Failed to get news: {str(e)}")
-        capture_exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
+    return services.read_news_with_details(db,None)
 
 @router.get("/user_news")
 def read_user_news(
@@ -57,66 +37,20 @@ def read_user_news(
     :param usertoken:
     :return:包含點讚詳情的新聞文章列表
     """
-    try:
-        news = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
-        result = []
-        for article in news:
-            upvotes, upvoted = get_article_upvote_details(article.id, usertoken.id, db)
-            result.append(
-                {
-                    **article.__dict__,
-                    "upvotes": upvotes,
-                    "is_upvoted": upvoted,
-                }
-            )
-        return result
-    except Exception as e:
-        logger.error(f"Failed to get user news: {str(e)}")
-        capture_exception(e)
-        raise HTTPException(status_code=500, detail=str(e))
+    return services.read_news_with_details(db,usertoken)
 
-_id_counter = itertools.count(start=1000000)
+
 @router.post("/search_news")
 async def search_news(request: PromptRequest):
     """
     :param request: `PromptRequest` 類型的請求對象，包含使用者輸入的新聞描述文字 (prompt)
     :return: JSON 格式的新聞列表
     """
-    try:
-        news_list = []
-        keywords = llm_client.extract_search_keywords(request.prompt)
-        news_items = get_new_info(keywords, is_initial=False)
-        for news in news_items:
-            try:
-                news_from_crawler=udn_crawler.parse(news.url)
-                content = news_from_crawler.content
-               
-                detailed_news = {
-                    "url": news.url,
-                    "title": news.title,
-                    "time": news_from_crawler.time,
-                    "content": content,
-                }
-                detailed_news["id"]  = next(_id_counter)
-
-                news_list.append(detailed_news)
-            except ParseException as error:
-                logger.error(f"Failed to parse news: {str(error)}")
-                capture_exception(error)
-                continue
-        return sorted(news_list, key=lambda x: x["time"], reverse=True)
-    except TextGenerationError as e:
-        logger.error(f"Failed to extract keywords: {str(e)}")
-        capture_exception(e)
-        raise NewsSearchException(f"Failed to extract keywords: {str(e)}")
-    except Exception as e:
-        logger.error(f"Failed to search news: {str(e)}")
-        capture_exception(e)
-        raise NewsSearchException(str(e))
+    return services.search_news(request)
 
 @router.post("/news_summary")
 async def news_summary(
-        payload: NewsSumaryRequestSchema, user=Depends(authenticate_user_token)
+        payload: NewsSumaryRequestSchema, user_token=Depends(authenticate_user_token)
 ):
     """
     這個 API 端點接收新聞內容，並生成一個包含新聞影響和原因的摘要
@@ -124,26 +58,7 @@ async def news_summary(
     :param user: 經由 `authenticate_user_token` 認證的使用者。
     :return: JSON 格式的摘要結果
     """
-    try:
-        response = {}
-        result = llm_client.generate_summary(payload.content)
-        if result:
-            result = json.loads(result)
-            response["summary"] = result["影響"]
-            response["reason"] = result["原因"]
-        return response
-    except TextGenerationError as e:
-        logger.error(f"Failed to generate summary: {str(e)}")
-        capture_exception(e)
-        raise NewsSummaryException(f"Failed to generate summary: {str(e)}")
-    except json.JSONDecodeError as e:
-        logger.error(f"Invalid summary format: {str(e)}")
-        capture_exception(e)
-        raise NewsSummaryException("Invalid summary format")
-    except Exception as e:
-        logger.error(f"Error occurred during summary generation: {str(e)}")
-        capture_exception(e)
-        raise NewsSummaryException(str(e))
+    return services.get_news_summary(payload,user_token,services.openai_client)
 
 @router.post("/{article_id}/upvote")
 def upvote_article(
@@ -157,41 +72,17 @@ def upvote_article(
     :param usertoken:
     :return: JSON 格式的點讚操作狀態訊息
     """
-    try:
-        message = toggle_upvote(article_id, usertoken.id, db)
-        return {"message": message}
-    except Exception as e:
-        logger.error(f"Failed to upvote: {str(e)}")
-        capture_exception(e)
-        raise UpvoteException(str(e))
+    return services.upvote_article(article_id,db,usertoken)
 
 @router.post("/news_summary_custom_model")
-async def summarize_news_with_custome_model(payload: NewsSumaryCustomModelSchema, user= Depends(authenticate_user_token)):
-    try:
-        response = {}
-        if(payload.ai_model=="anthropic") :
-            llm_client=anthropic_client
-        if(payload.ai_model=="openai") :
-            llm_client=openai_client 
-        result = llm_client.generate_summary(payload.content)
-        if result:
-            result = json.loads(result)
-            response["summary"] = result["影響"]
-            response["reason"] = result["原因"]
-        return response
-    except TextGenerationError as e:
-        logger.error(f"Custom model failed to generate summary: {str(e)}")
-        capture_exception(e)
-        raise NewsSummaryException(f"Failed to generate summary: {str(e)}")
-    except json.JSONDecodeError as e:
-        logger.error(f"Custom model invalid summary format: {str(e)}")
-        capture_exception(e)
-        raise NewsSummaryException("Invalid summary format")
-    except Exception as e:
-        logger.error(f"Error occurred during custom model summary generation: {str(e)}")
-        capture_exception(e)
-        raise NewsSummaryException(str(e))
+async def summarize_news_with_custom_model(payload: NewsSumaryCustomModelSchema, user_token= Depends(authenticate_user_token)):
+    llm_client = None
+    if payload.llm_model == "anthropic":
+        llm_client = services.anthropic_client
+    elif payload.llm_model == "openai":
+        llm_client = services.openai_client
+    result = services.get_news_summary(payload,user_token,llm_client)
+    return result
 
-@router.get("/sentry-debug")
-async def trigger_error():
-    division_by_zero = 1 / 0
+    
+

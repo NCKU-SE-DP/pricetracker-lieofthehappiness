@@ -1,21 +1,73 @@
+from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import delete, insert, select
-import json
+import itertools
 from ..models import user_news_table, NewsArticle
-from .config import OPENAI_API_KEY, ANTHROPIC_KEY
+from ..logger.base import logger
 from ..crawler.udn_crawler import UDNCrawler
 from ..crawler.crawler_base import NewsWithSummary
-from ..crawler.crawler_base import NewsCrawlerBase
-import requests
+from ..crawler.exceptions import ParseException
 from ..llm_clients.openai_clients import OpenAIClient
 from ..llm_clients.anthropic_clients import AnthropicClient
-from ..logger.base import logger
+from ..llm_clients.exceptions import TextGenerationError
+from .config import OPENAI_API_KEY, ANTHROPIC_KEY
+from .exceptions import (
+    NewsAddException,
+    NewsSearchException,
+    NewsServiceException,
+    UpvoteException,
+    UpvoteOperationException,
+    NewsSummaryException,
+)
+from .router import PromptRequest
 from sentry_sdk import capture_exception
+import json
 
+# 初始化客戶端
 udn_crawler = UDNCrawler()
-openai_client = OpenAIClient(api_key= OPENAI_API_KEY)
+openai_client = OpenAIClient(api_key=OPENAI_API_KEY)
 anthropic_client = AnthropicClient(api_key=ANTHROPIC_KEY)
-from .exceptions import NewsAddException, NewsRetrievalException, UpvoteOperationException, NewsServiceException
+_id_counter = itertools.count(start=1000000)
+llm_client=OpenAIClient(api_key= OPENAI_API_KEY)
+
+def search_news(request: PromptRequest):
+    try:
+        news_list = []
+        keywords = llm_client.extract_search_keywords(request.prompt)
+        news_items = get_new_info(keywords, is_initial=False)
+        for news in news_items:
+            try:
+                detailed_news = udn_crawler.validate_and_parse(news.url).model_dump()
+                detailed_news["id"]  = next(_id_counter)
+                news_list.append(detailed_news)
+            except ParseException as error:
+                logger.error(f"Failed to parse news: {str(error)}")
+                capture_exception(error)
+                continue
+        return sorted(news_list, key=lambda x: x["time"], reverse=True)
+    except TextGenerationError as e:
+        logger.error(f"Failed to extract keywords: {str(e)}")
+        capture_exception(e)
+        raise NewsSearchException(f"Failed to extract keywords: {str(e)}")
+    except Exception as e:
+        logger.error(f"Failed to search news: {str(e)}")
+        capture_exception(e)
+        raise NewsSearchException(str(e))
+    
+def read_news_with_details(db, usertoken):
+    try:
+        news = db.query(NewsArticle).order_by(NewsArticle.time.desc()).all()
+        result = []
+        for article in news:
+            upvotes, upvoted = get_article_upvote_details(article.id, usertoken.id if usertoken else None, db)
+            result.append(
+                {**article.__dict__, "upvotes": upvotes, "is_upvoted": upvoted}
+            )
+        return result
+    except Exception as e:
+        logger.error(f"Failed to get news: {str(e)}")
+        capture_exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 def add_new(news_data: NewsWithSummary):
     """
@@ -39,15 +91,10 @@ def get_new_info(search_term, is_initial=False):
     :param is_initial:是否獲取多個頁面的新聞資料
     :return:包含新聞資料的列表
     """
-    try:
-        if is_initial:  
-            return udn_crawler.get_headline(search_term,page=(1,10))    
-        else:
-            return udn_crawler.get_headline(search_term,1) 
-    except Exception as e:
-        logger.error(f"Failed to get news info: {str(e)}")
-        capture_exception(e)
-        raise NewsRetrievalException(f"Failed to get news info: {str(e)}")
+    if is_initial:  
+        return udn_crawler.get_headline(search_term,page=(1,10))    
+    else:
+        return udn_crawler.get_headline(search_term,1) 
 
 def get_new(is_initial=False):
     """
@@ -55,37 +102,28 @@ def get_new(is_initial=False):
     :param is_initial:是否需要抓取多頁的新聞
     :return:
     """
-    try:
-        news_data = get_new_info("price", is_initial=is_initial)
-        for news in news_data:
-            title = news.title
-            url=news.url
-            relevance = openai_client.evaluate_relevance(title)
-            if relevance == "high":
-                news_from_crawler=udn_crawler.parse(url)
-                result = openai_client.generate_summary(news_from_crawler.content)
-                result = json.loads(result)
-                detailed_news=NewsWithSummary(
-                    title=title,
-                    url=url,
-                    time=news_from_crawler.time,
-                    content=news_from_crawler.content,
-                    summary=result["影響"],
-                    reason=result["原因"]
-                )
-                add_new(detailed_news)
-    except Exception as e:
-        logger.error(f"Failed to process news data: {str(e)}")
-        capture_exception(e)
-        raise NewsRetrievalException(f"Failed to process news data: {str(e)}")
+    
+    news_data = get_new_info("price", is_initial=is_initial)
+    for news in news_data:
+        title = news.title
+        url=news.url
+        relevance = openai_client.evaluate_relevance(title)
+        if relevance == "high":
+            news_from_crawler=udn_crawler.parse(url)
+            result = openai_client.generate_summary(news_from_crawler.content)
+            result = json.loads(result)
+            detailed_news=NewsArticle(
+                title=title,
+                url=url,
+                time=news_from_crawler.time,
+                content=news_from_crawler.content,
+                summary=result["影響"],
+                reason=result["原因"]
+            )
+            add_new(detailed_news)
+
 
 def get_article_upvote_details(article_id, userid, db):
-    """
-    :param article_id: 
-    :param userid: 
-    :param db: 資料庫的 session
-    :return: (點贊總數, 當前使用者是否已點贊)
-    """
     try:
         total_upvotes = (
             db.query(user_news_table)
@@ -148,3 +186,32 @@ def news_exists(article_id, db: Session):
         logger.error(f"Failed to check if news exists: {str(e)}")
         capture_exception(e)
         raise NewsServiceException(f"Failed to check if news exists: {str(e)}")
+def upvote_article(article_id, db, usertoken):
+    try:
+        message = toggle_upvote(article_id, usertoken.id, db)
+        return {"message": message}
+    except Exception as e:
+        logger.error(f"Failed to upvote: {str(e)}")
+        capture_exception(e)
+        raise UpvoteException(str(e))
+def get_news_summary(payload,user_token,llm_client):
+    try:
+        response = {}
+        result = llm_client.generate_summary(payload.content)
+        if result:
+            result = json.loads(result)
+            response["summary"] = result["影響"]
+            response["reason"] = result["原因"]
+        return response
+    except TextGenerationError as e:
+        logger.error(f"Failed to generate summary: {str(e)}")
+        capture_exception(e)
+        raise NewsSummaryException(f"Failed to generate summary: {str(e)}")
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid summary format: {str(e)}")
+        capture_exception(e)
+        raise NewsSummaryException("Invalid summary format")
+    except Exception as e:
+        logger.error(f"Error occurred during summary generation: {str(e)}")
+        capture_exception(e)
+        raise NewsSummaryException(str(e))

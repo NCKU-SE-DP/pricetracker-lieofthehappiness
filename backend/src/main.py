@@ -11,7 +11,7 @@ from .news.router import router as news_router
 from .users.router import router as users_router
 from .exceptions import SchedulerStartupError, SchedulerShutdownError
 from .logger.base import logger
-from sentry_sdk import capture_exception, capture_message
+from sentry_sdk import capture_exception
 
 sentry_sdk.init(
     dsn=App.DSN,

@@ -2,7 +2,6 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt
 from fastapi import Depends
 from sentry_sdk import capture_exception
-import logging
 from .config import SECRET_KEY, ALGORITHM, TOKEN_EXPIRE_TIME
 from .utils import verify
 from ..database import oauth2_scheme, session_opener

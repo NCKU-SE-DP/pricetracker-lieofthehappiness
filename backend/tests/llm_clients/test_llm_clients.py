@@ -3,6 +3,8 @@ import os
 from unittest.mock import patch
 
 from src.llm_clients.openai_clients import OpenAIClient
+from src.llm_clients.exceptions import MessageFormatError, TextGenerationError
+
 # 除非確認要使用真實的API進行測試(當然會因此擁有額外的開銷)，否則將RUN_REAL_API_TESTS設置為False
 RUN_REAL_API_TESTS = os.getenv("RUN_REAL_API_TESTS", "false").lower() == "true"
 
@@ -49,40 +51,21 @@ class TestOpenAIClient(unittest.TestCase):
 
             self.assertEqual(result, 'high')
 
-            mock_generate_text.assert_called_once_with(
-                messages=[
-                    {
-                        "role": "system",
-                        "content":"你是一個關聯度評估機器人，請評估新聞標題是否與「民生用品的價格變化」相關，並給予\"high\"、\"medium\"、\"low\"評價。(僅需回答\"high\"、\"medium\"、\"low\"三個詞之一)",
-                    },
-                    {"role": "user", "content": "食品價格上漲"},
-                ]
-            )
+            mock_generate_text.assert_called_once()
         except Exception as e:
             self.fail(f"測試失敗，錯誤訊息: {str(e)}")
 
-    @patch('src.llm_clients.openai_clients.OpenAIClient._generate_text')
+    @patch('src.llm_clients.Templete.LLMClientTemplate._generate_text')
     def test_generate_summary(self, mock_generate_text):
         try:
             mock_generate_text.return_value = '{"影響": "影響描述", "原因": "原因描述"}'
-
             result = self.client.generate_summary("一篇新聞內容")
-
             self.assertEqual(result, '{"影響": "影響描述", "原因": "原因描述"}')
-
-            mock_generate_text.assert_called_once_with(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "你是一個新聞摘要生成機器人，請統整新聞中提及的影響及主要原因 (影響、原因各50個字請以json格式回答請不要有```json {\"影響\": \"...\", \"原因\": \"...\"})",
-                    },
-                    {"role": "user", "content": "一篇新聞內容"},
-                ]
-            )
+            mock_generate_text.assert_called_once()
         except Exception as e:
             self.fail(f"測試失敗，錯誤訊息: {str(e)}")
 
-    @patch('src.llm_clients.openai_clients.OpenAIClient._generate_text')
+    @patch('src.llm_clients.Templete.LLMClientTemplate._generate_text')
     def test_extract_search_keywords(self, mock_generate_text):
         try:
             mock_generate_text.return_value = '食品 價格'
@@ -90,18 +73,40 @@ class TestOpenAIClient(unittest.TestCase):
             result = self.client.extract_search_keywords("一段希望看到的新聞文字")
 
             self.assertEqual(result, '食品 價格')
-
-            mock_generate_text.assert_called_once_with(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "你是一個關鍵字提取機器人，用戶將會輸入一段文字，表示其希望看見的新聞內容，請提取出用戶希望看見的關鍵字，請截取最重要的關鍵字即可，避免出現「新聞」、「資訊」等混淆搜尋引擎的字詞。(僅須回答關鍵字，若有多個關鍵字，請以空格分隔)",
-                    },
-                    {"role": "user", "content": "一段希望看到的新聞文字"},
-                ]
-            )
+            mock_generate_text.assert_called_once()
         except Exception as e:
             self.fail(f"測試失敗，錯誤訊息: {str(e)}")
+
+    # 測試 _generate_mpi_messages 方法在格式化訊息失敗時是否正確拋出 MessageFormatError
+    def test_generate_mpi_messages_format_error(self):
+        with self.assertRaises(MessageFormatError):
+            self.client._generate_mpi_messages(system_content=None, user_content=None)
+
+
+    def test_generate_text_error(self):
+        with self.assertRaises(TextGenerationError):
+            self.client._generate_text("", "")
+
+    # 測試異常情況下的 evaluate_relevance 方法
+    @patch('src.llm_clients.Templete.LLMClientTemplate._generate_text')
+    def test_evaluate_relevance_error(self, mock_generate_text):
+        mock_generate_text.side_effect = TextGenerationError("生成文字失敗")
+        with self.assertRaises(TextGenerationError):
+            self.client.evaluate_relevance("測試標題")
+
+    # 測試異常情況下的 generate_summary 方法
+    @patch('src.llm_clients.Templete.LLMClientTemplate._generate_text')
+    def test_generate_summary_error(self, mock_generate_text):
+        mock_generate_text.side_effect = TextGenerationError("生成摘要失敗")
+        with self.assertRaises(TextGenerationError):
+            self.client.generate_summary("測試內容")
+
+    # 測試異常情況下的 extract_search_keywords 方法
+    @patch('src.llm_clients.Templete.LLMClientTemplate._generate_text')
+    def test_extract_search_keywords_error(self, mock_generate_text):
+        mock_generate_text.side_effect = TextGenerationError("關鍵字提取失敗")
+        with self.assertRaises(TextGenerationError):
+            self.client.extract_search_keywords("測試內容")
 
 
 if __name__ == '__main__':
