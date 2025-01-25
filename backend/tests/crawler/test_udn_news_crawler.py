@@ -127,35 +127,29 @@ class TestUDNCrawler(unittest.TestCase):
 
     # 以下是異常處理的測試
     def test_startup_empty_search_term(self):
-        """測試當startup()傳入空字串時,應該拋出InvalidSearchTermException"""
         with self.assertRaises(InvalidSearchTermException):
             self.scraper.startup("")
 
     def test_get_headline_empty_search_term(self):
-        """測試當get_headline()傳入空字串時,應該拋出InvalidSearchTermException"""
         with self.assertRaises(InvalidSearchTermException):
             self.scraper.get_headline("", 1)
 
     def test_get_headline_invalid_page_number(self):
-        """測試當get_headline()傳入負數頁碼時,應該拋出InvalidPageException"""
         with self.assertRaises(InvalidPageException):
             self.scraper.get_headline("test", -1)
 
     def test_get_headline_invalid_page_range(self):
-        """測試當get_headline()傳入不合法的頁碼範圍時,應該拋出InvalidPageException"""
         with self.assertRaises(InvalidPageException):
-            self.scraper.get_headline("test", (2, 1))  # 結束頁碼小於起始頁碼
+            self.scraper.get_headline("test", (2, 1)) 
 
     @patch("src.crawler.udn_crawler.requests.get")
     def test_perform_request_raises_parse_exception(self, mock_get):
-        """測試當HTTP請求失敗時,應該拋出ParseException"""
         mock_get.side_effect = requests.RequestException("Network Error")
         with self.assertRaises(ParseException):
             self.scraper._perform_request(url="https://udn.com/news/test")
 
     @patch("src.crawler.udn_crawler.requests.get")
     def test_parse_headlines_raises_parse_exception(self, mock_get):
-        """測試當解析新聞標題失敗時,應該拋出ParseException"""
         mock_response = MagicMock(spec=Response)
         mock_response.json.side_effect = Exception("JSON Parse Error")
         mock_response.url = "https://udn.com/news/test"
@@ -165,7 +159,6 @@ class TestUDNCrawler(unittest.TestCase):
 
     @patch("src.crawler.udn_crawler.requests.get")
     def test_parse_raises_parse_exception(self, mock_get):
-        """測試當解析新聞內容失敗時,應該拋出ParseException"""
         mock_response = MagicMock(spec=Response)
         mock_response.text = "<html></html>"  # 不完整的HTML
         mock_get.return_value = mock_response
